@@ -14,6 +14,22 @@ import { debugDatabase } from './tools/debug.js';
 import { getSchemaInfo, createTable, alterTable } from './tools/schema.js';
 import { exportTableData, importTableData, copyBetweenDatabases } from './tools/migration.js';
 import { monitorDatabase } from './tools/monitor.js';
+import { 
+  getFunctions, 
+  createFunction, 
+  dropFunction, 
+  enableRLS, 
+  disableRLS, 
+  createRLSPolicy, 
+  dropRLSPolicy, 
+  getRLSPolicies 
+} from './tools/functions.js';
+import {
+  getTriggers,
+  createTrigger,
+  dropTrigger,
+  setTriggerState
+} from './tools/triggers.js';
 import { DatabaseConnection } from './utils/connection.js';
 
 // Define all tool definitions
@@ -373,6 +389,406 @@ const TOOL_DEFINITIONS = [
       },
       required: ['connectionString']
     }
+  },
+
+  // Function management tools
+  {
+    name: 'get_functions',
+    description: 'Get information about PostgreSQL functions',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connectionString: {
+          type: 'string',
+          description: 'PostgreSQL connection string'
+        },
+        functionName: {
+          type: 'string',
+          description: 'Optional function name to filter by'
+        },
+        schema: {
+          type: 'string',
+          description: 'Schema name (defaults to public)'
+        }
+      },
+      required: ['connectionString']
+    }
+  },
+  {
+    name: 'create_function',
+    description: 'Create or replace a PostgreSQL function',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connectionString: {
+          type: 'string',
+          description: 'PostgreSQL connection string'
+        },
+        functionName: {
+          type: 'string',
+          description: 'Name of the function to create'
+        },
+        parameters: {
+          type: 'string',
+          description: 'Function parameters (e.g., "id integer, name text")'
+        },
+        returnType: {
+          type: 'string',
+          description: 'Return type of the function'
+        },
+        functionBody: {
+          type: 'string',
+          description: 'Function body code'
+        },
+        language: {
+          type: 'string',
+          enum: ['sql', 'plpgsql', 'plpython3u'],
+          description: 'Function language'
+        },
+        volatility: {
+          type: 'string',
+          enum: ['VOLATILE', 'STABLE', 'IMMUTABLE'],
+          description: 'Function volatility'
+        },
+        schema: {
+          type: 'string',
+          description: 'Schema name (defaults to public)'
+        },
+        security: {
+          type: 'string',
+          enum: ['INVOKER', 'DEFINER'],
+          description: 'Function security context'
+        },
+        replace: {
+          type: 'boolean',
+          description: 'Whether to replace the function if it exists'
+        }
+      },
+      required: ['connectionString', 'functionName', 'parameters', 'returnType', 'functionBody']
+    }
+  },
+  {
+    name: 'drop_function',
+    description: 'Drop a PostgreSQL function',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connectionString: {
+          type: 'string',
+          description: 'PostgreSQL connection string'
+        },
+        functionName: {
+          type: 'string',
+          description: 'Name of the function to drop'
+        },
+        parameters: {
+          type: 'string',
+          description: 'Function parameters signature (required for overloaded functions)'
+        },
+        schema: {
+          type: 'string',
+          description: 'Schema name (defaults to public)'
+        },
+        ifExists: {
+          type: 'boolean',
+          description: 'Whether to include IF EXISTS clause'
+        },
+        cascade: {
+          type: 'boolean',
+          description: 'Whether to include CASCADE clause'
+        }
+      },
+      required: ['connectionString', 'functionName']
+    }
+  },
+  
+  // Row-Level Security (RLS) tools
+  {
+    name: 'enable_rls',
+    description: 'Enable Row-Level Security on a table',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connectionString: {
+          type: 'string',
+          description: 'PostgreSQL connection string'
+        },
+        tableName: {
+          type: 'string',
+          description: 'Name of the table to enable RLS on'
+        },
+        schema: {
+          type: 'string',
+          description: 'Schema name (defaults to public)'
+        }
+      },
+      required: ['connectionString', 'tableName']
+    }
+  },
+  {
+    name: 'disable_rls',
+    description: 'Disable Row-Level Security on a table',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connectionString: {
+          type: 'string',
+          description: 'PostgreSQL connection string'
+        },
+        tableName: {
+          type: 'string',
+          description: 'Name of the table to disable RLS on'
+        },
+        schema: {
+          type: 'string',
+          description: 'Schema name (defaults to public)'
+        }
+      },
+      required: ['connectionString', 'tableName']
+    }
+  },
+  {
+    name: 'create_rls_policy',
+    description: 'Create a Row-Level Security policy',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connectionString: {
+          type: 'string',
+          description: 'PostgreSQL connection string'
+        },
+        tableName: {
+          type: 'string',
+          description: 'Name of the table to create policy on'
+        },
+        policyName: {
+          type: 'string',
+          description: 'Name of the policy to create'
+        },
+        using: {
+          type: 'string',
+          description: 'USING expression for the policy (e.g., "user_id = current_user_id()")'
+        },
+        check: {
+          type: 'string',
+          description: 'WITH CHECK expression for the policy (if different from USING)'
+        },
+        schema: {
+          type: 'string',
+          description: 'Schema name (defaults to public)'
+        },
+        command: {
+          type: 'string',
+          enum: ['ALL', 'SELECT', 'INSERT', 'UPDATE', 'DELETE'],
+          description: 'Command the policy applies to'
+        },
+        role: {
+          type: 'string',
+          description: 'Role the policy applies to'
+        },
+        replace: {
+          type: 'boolean',
+          description: 'Whether to replace the policy if it exists'
+        }
+      },
+      required: ['connectionString', 'tableName', 'policyName', 'using']
+    }
+  },
+  {
+    name: 'drop_rls_policy',
+    description: 'Drop a Row-Level Security policy',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connectionString: {
+          type: 'string',
+          description: 'PostgreSQL connection string'
+        },
+        tableName: {
+          type: 'string',
+          description: 'Name of the table the policy is on'
+        },
+        policyName: {
+          type: 'string',
+          description: 'Name of the policy to drop'
+        },
+        schema: {
+          type: 'string',
+          description: 'Schema name (defaults to public)'
+        },
+        ifExists: {
+          type: 'boolean',
+          description: 'Whether to include IF EXISTS clause'
+        }
+      },
+      required: ['connectionString', 'tableName', 'policyName']
+    }
+  },
+  {
+    name: 'get_rls_policies',
+    description: 'Get Row-Level Security policies',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connectionString: {
+          type: 'string',
+          description: 'PostgreSQL connection string'
+        },
+        tableName: {
+          type: 'string',
+          description: 'Optional table name to filter by'
+        },
+        schema: {
+          type: 'string',
+          description: 'Schema name (defaults to public)'
+        }
+      },
+      required: ['connectionString']
+    }
+  },
+
+  // Trigger management tools
+  {
+    name: 'get_triggers',
+    description: 'Get information about PostgreSQL triggers',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connectionString: {
+          type: 'string',
+          description: 'PostgreSQL connection string'
+        },
+        tableName: {
+          type: 'string',
+          description: 'Optional table name to filter by'
+        },
+        schema: {
+          type: 'string',
+          description: 'Schema name (defaults to public)'
+        }
+      },
+      required: ['connectionString']
+    }
+  },
+  {
+    name: 'create_trigger',
+    description: 'Create a PostgreSQL trigger',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connectionString: {
+          type: 'string',
+          description: 'PostgreSQL connection string'
+        },
+        triggerName: {
+          type: 'string',
+          description: 'Name of the trigger to create'
+        },
+        tableName: {
+          type: 'string',
+          description: 'Name of the table to create trigger on'
+        },
+        functionName: {
+          type: 'string',
+          description: 'Name of the function to execute'
+        },
+        schema: {
+          type: 'string',
+          description: 'Schema name (defaults to public)'
+        },
+        timing: {
+          type: 'string',
+          enum: ['BEFORE', 'AFTER', 'INSTEAD OF'],
+          description: 'When to fire the trigger'
+        },
+        events: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE']
+          },
+          description: 'Events that fire the trigger'
+        },
+        when: {
+          type: 'string',
+          description: 'Optional WHEN condition'
+        },
+        forEach: {
+          type: 'string',
+          enum: ['ROW', 'STATEMENT'],
+          description: 'Whether to fire once per row or statement'
+        },
+        replace: {
+          type: 'boolean',
+          description: 'Whether to replace the trigger if it exists'
+        }
+      },
+      required: ['connectionString', 'triggerName', 'tableName', 'functionName']
+    }
+  },
+  {
+    name: 'drop_trigger',
+    description: 'Drop a PostgreSQL trigger',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connectionString: {
+          type: 'string',
+          description: 'PostgreSQL connection string'
+        },
+        triggerName: {
+          type: 'string',
+          description: 'Name of the trigger to drop'
+        },
+        tableName: {
+          type: 'string',
+          description: 'Name of the table the trigger is on'
+        },
+        schema: {
+          type: 'string',
+          description: 'Schema name (defaults to public)'
+        },
+        ifExists: {
+          type: 'boolean',
+          description: 'Whether to include IF EXISTS clause'
+        },
+        cascade: {
+          type: 'boolean',
+          description: 'Whether to include CASCADE clause'
+        }
+      },
+      required: ['connectionString', 'triggerName', 'tableName']
+    }
+  },
+  {
+    name: 'set_trigger_state',
+    description: 'Enable or disable a PostgreSQL trigger',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connectionString: {
+          type: 'string',
+          description: 'PostgreSQL connection string'
+        },
+        triggerName: {
+          type: 'string',
+          description: 'Name of the trigger to enable/disable'
+        },
+        tableName: {
+          type: 'string',
+          description: 'Name of the table the trigger is on'
+        },
+        enable: {
+          type: 'boolean',
+          description: 'Whether to enable (true) or disable (false) the trigger'
+        },
+        schema: {
+          type: 'string',
+          description: 'Schema name (defaults to public)'
+        }
+      },
+      required: ['connectionString', 'triggerName', 'tableName', 'enable']
+    }
   }
 ];
 
@@ -527,7 +943,7 @@ class PostgreSQLServer {
               operations: {
                 type: 'add' | 'alter' | 'drop';
                 columnName: string;
-                dataType?: string;
+                dataType: string;
                 nullable?: boolean;
                 default?: string;
               }[];
@@ -626,6 +1042,315 @@ class PostgreSQLServer {
               includeReplication, 
               alertThresholds 
             });
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2)
+                }
+              ]
+            };
+          }
+
+          // Function management handlers
+          case 'get_functions': {
+            const { connectionString, functionName, schema } = request.params.arguments as {
+              connectionString: string;
+              functionName?: string;
+              schema?: string;
+            };
+            const result = await getFunctions(connectionString, functionName, schema);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2)
+                }
+              ]
+            };
+          }
+          
+          case 'create_function': {
+            const { connectionString, functionName, parameters, returnType, functionBody, language, volatility, schema, security, replace } = request.params.arguments as {
+              connectionString: string;
+              functionName: string;
+              parameters: string;
+              returnType: string;
+              functionBody: string;
+              language?: 'sql' | 'plpgsql' | 'plpython3u';
+              volatility?: 'VOLATILE' | 'STABLE' | 'IMMUTABLE';
+              schema?: string;
+              security?: 'INVOKER' | 'DEFINER';
+              replace?: boolean;
+            };
+            const result = await createFunction(
+              connectionString,
+              functionName,
+              parameters,
+              returnType,
+              functionBody,
+              {
+                language,
+                volatility,
+                schema,
+                security,
+                replace
+              }
+            );
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2)
+                }
+              ]
+            };
+          }
+          
+          case 'drop_function': {
+            const { connectionString, functionName, parameters, schema, ifExists, cascade } = request.params.arguments as {
+              connectionString: string;
+              functionName: string;
+              parameters: string;
+              schema?: string;
+              ifExists: boolean;
+              cascade: boolean;
+            };
+            const result = await dropFunction(
+              connectionString,
+              functionName,
+              parameters,
+              {
+                schema,
+                ifExists,
+                cascade
+              }
+            );
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2)
+                }
+              ]
+            };
+          }
+          
+          // Row-Level Security handlers
+          case 'enable_rls': {
+            const { connectionString, tableName, schema } = request.params.arguments as {
+              connectionString: string;
+              tableName: string;
+              schema?: string;
+            };
+            const result = await enableRLS(connectionString, tableName, schema);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2)
+                }
+              ]
+            };
+          }
+          
+          case 'disable_rls': {
+            const { connectionString, tableName, schema } = request.params.arguments as {
+              connectionString: string;
+              tableName: string;
+              schema?: string;
+            };
+            const result = await disableRLS(connectionString, tableName, schema);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2)
+                }
+              ]
+            };
+          }
+          
+          case 'create_rls_policy': {
+            const { connectionString, tableName, policyName, using, check, schema, command, role, replace } = request.params.arguments as {
+              connectionString: string;
+              tableName: string;
+              policyName: string;
+              using: string;
+              check?: string;
+              schema?: string;
+              command?: 'ALL' | 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE';
+              role?: string;
+              replace?: boolean;
+            };
+            const result = await createRLSPolicy(
+              connectionString,
+              tableName,
+              policyName,
+              using,
+              check,
+              {
+                schema,
+                command,
+                role,
+                replace
+              }
+            );
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2)
+                }
+              ]
+            };
+          }
+          
+          case 'drop_rls_policy': {
+            const { connectionString, tableName, policyName, schema, ifExists } = request.params.arguments as {
+              connectionString: string;
+              tableName: string;
+              policyName: string;
+              schema?: string;
+              ifExists: boolean;
+            };
+            const result = await dropRLSPolicy(
+              connectionString,
+              tableName,
+              policyName,
+              {
+                schema,
+                ifExists
+              }
+            );
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2)
+                }
+              ]
+            };
+          }
+          
+          case 'get_rls_policies': {
+            const { connectionString, tableName, schema } = request.params.arguments as {
+              connectionString: string;
+              tableName?: string;
+              schema?: string;
+            };
+            const result = await getRLSPolicies(connectionString, tableName, schema);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2)
+                }
+              ]
+            };
+          }
+
+          // Trigger management handlers
+          case 'get_triggers': {
+            const { connectionString, tableName, schema } = request.params.arguments as {
+              connectionString: string;
+              tableName?: string;
+              schema?: string;
+            };
+            const result = await getTriggers(connectionString, tableName, schema);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2)
+                }
+              ]
+            };
+          }
+          
+          case 'create_trigger': {
+            const { connectionString, triggerName, tableName, functionName, schema, timing, events, when, forEach, replace } = request.params.arguments as {
+              connectionString: string;
+              triggerName: string;
+              tableName: string;
+              functionName: string;
+              schema?: string;
+              timing?: 'BEFORE' | 'AFTER' | 'INSTEAD OF';
+              events?: ('INSERT' | 'UPDATE' | 'DELETE' | 'TRUNCATE')[];
+              when?: string;
+              forEach?: 'ROW' | 'STATEMENT';
+              replace?: boolean;
+            };
+            const result = await createTrigger(
+              connectionString,
+              triggerName,
+              tableName,
+              functionName,
+              {
+                schema,
+                timing,
+                events,
+                when,
+                forEach,
+                replace
+              }
+            );
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2)
+                }
+              ]
+            };
+          }
+          
+          case 'drop_trigger': {
+            const { connectionString, triggerName, tableName, schema, ifExists, cascade } = request.params.arguments as {
+              connectionString: string;
+              triggerName: string;
+              tableName: string;
+              schema?: string;
+              ifExists?: boolean;
+              cascade?: boolean;
+            };
+            const result = await dropTrigger(
+              connectionString,
+              triggerName,
+              tableName,
+              {
+                schema,
+                ifExists,
+                cascade
+              }
+            );
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2)
+                }
+              ]
+            };
+          }
+          
+          case 'set_trigger_state': {
+            const { connectionString, triggerName, tableName, enable, schema } = request.params.arguments as {
+              connectionString: string;
+              triggerName: string;
+              tableName: string;
+              enable: boolean;
+              schema?: string;
+            };
+            const result = await setTriggerState(
+              connectionString,
+              triggerName,
+              tableName,
+              enable,
+              {
+                schema
+              }
+            );
             return {
               content: [
                 {
