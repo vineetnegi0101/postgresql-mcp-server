@@ -1,11 +1,11 @@
 {
   "name": "postgresql-mcp-server",
-  "version": "0.1.0",
-  "description": "MCP server for PostgreSQL database management",
+  "version": "0.2.0",
+  "description": "MCP server for PostgreSQL database management, schema management, data migration, and monitoring",
   "type": "module",
   "main": "build/index.js",
   "scripts": {
-    "build": "tsc && chmod +x build/index.js",
+    "build": "tsc && node -e \"process.platform !== 'win32' && require('child_process').execSync('chmod +x build/index.js')\"",
     "start": "node build/index.js",
     "dev": "tsx watch src/index.ts",
     "lint": "eslint . --ext .ts",
@@ -15,7 +15,10 @@
     "postgresql",
     "mcp",
     "database",
-    "management"
+    "management",
+    "schema",
+    "migration",
+    "monitoring"
   ],
   "author": "",
   "license": "MIT",

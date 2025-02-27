@@ -1,10 +1,12 @@
 # PostgreSQL MCP Server
 
-A Model Context Protocol (MCP) server that provides PostgreSQL database management capabilities. This server assists with analyzing existing PostgreSQL setups, providing implementation guidance, and debugging database issues.
+A Model Context Protocol (MCP) server that provides PostgreSQL database management capabilities. This server assists with analyzing existing PostgreSQL setups, providing implementation guidance, debugging database issues, managing schemas, migrating data, and monitoring database performance.
 
 ## Features
 
-### 1. Database Analysis (`analyze_database`)
+### Database Analysis and Debugging
+
+#### 1. Database Analysis (`analyze_database`)
 Analyzes PostgreSQL database configuration and performance metrics:
 - Configuration analysis
 - Performance metrics
@@ -19,7 +21,7 @@ Analyzes PostgreSQL database configuration and performance metrics:
 }
 ```
 
-### 2. Setup Instructions (`get_setup_instructions`)
+#### 2. Setup Instructions (`get_setup_instructions`)
 Provides step-by-step PostgreSQL installation and configuration guidance:
 - Platform-specific installation steps
 - Configuration recommendations
@@ -35,7 +37,7 @@ Provides step-by-step PostgreSQL installation and configuration guidance:
 }
 ```
 
-### 3. Database Debugging (`debug_database`)
+#### 3. Database Debugging (`debug_database`)
 Debug common PostgreSQL issues:
 - Connection problems
 - Performance bottlenecks
@@ -48,6 +50,145 @@ Debug common PostgreSQL issues:
   "connectionString": "postgresql://user:password@localhost:5432/dbname",
   "issue": "performance", // Required: "connection" | "performance" | "locks" | "replication"
   "logLevel": "debug" // Optional: "info" | "debug" | "trace"
+}
+```
+
+### Schema Management
+
+#### 4. Schema Information (`get_schema_info`)
+Get detailed schema information for a database or specific table:
+- List of tables in a database
+- Column definitions
+- Constraints (primary keys, foreign keys, etc.)
+- Indexes
+
+```typescript
+// Example usage
+{
+  "connectionString": "postgresql://user:password@localhost:5432/dbname",
+  "tableName": "users" // Optional: specific table to get info for
+}
+```
+
+#### 5. Create Table (`create_table`)
+Create a new table with specified columns:
+- Define column names and types
+- Set nullable constraints
+- Set default values
+
+```typescript
+// Example usage
+{
+  "connectionString": "postgresql://user:password@localhost:5432/dbname",
+  "tableName": "users",
+  "columns": [
+    { "name": "id", "type": "SERIAL", "nullable": false },
+    { "name": "username", "type": "VARCHAR(100)", "nullable": false },
+    { "name": "email", "type": "VARCHAR(255)", "nullable": false },
+    { "name": "created_at", "type": "TIMESTAMP", "default": "NOW()" }
+  ]
+}
+```
+
+#### 6. Alter Table (`alter_table`)
+Modify existing tables:
+- Add new columns
+- Modify column types or constraints
+- Drop columns
+
+```typescript
+// Example usage
+{
+  "connectionString": "postgresql://user:password@localhost:5432/dbname",
+  "tableName": "users",
+  "operations": [
+    { "type": "add", "columnName": "last_login", "dataType": "TIMESTAMP" },
+    { "type": "alter", "columnName": "email", "nullable": false },
+    { "type": "drop", "columnName": "temporary_field" }
+  ]
+}
+```
+
+### Data Migration
+
+#### 7. Export Table Data (`export_table_data`)
+Export table data to JSON or CSV format:
+- Filter data with WHERE clause
+- Limit number of rows
+- Choose output format
+
+```typescript
+// Example usage
+{
+  "connectionString": "postgresql://user:password@localhost:5432/dbname",
+  "tableName": "users",
+  "outputPath": "./exports/users.json",
+  "where": "created_at > '2023-01-01'", // Optional
+  "limit": 1000, // Optional
+  "format": "json" // Optional: "json" | "csv"
+}
+```
+
+#### 8. Import Table Data (`import_table_data`)
+Import data from JSON or CSV files:
+- Optionally truncate table before import
+- Support for different formats
+- Custom CSV delimiters
+
+```typescript
+// Example usage
+{
+  "connectionString": "postgresql://user:password@localhost:5432/dbname",
+  "tableName": "users",
+  "inputPath": "./imports/users.json",
+  "truncateFirst": false, // Optional
+  "format": "json", // Optional: "json" | "csv"
+  "delimiter": "," // Optional: for CSV files
+}
+```
+
+#### 9. Copy Between Databases (`copy_between_databases`)
+Copy data between two PostgreSQL databases:
+- Filter data with WHERE clause
+- Optionally truncate target table
+
+```typescript
+// Example usage
+{
+  "sourceConnectionString": "postgresql://user:password@localhost:5432/source_db",
+  "targetConnectionString": "postgresql://user:password@localhost:5432/target_db",
+  "tableName": "users",
+  "where": "active = true", // Optional
+  "truncateTarget": false // Optional
+}
+```
+
+### Monitoring
+
+#### 10. Monitor Database (`monitor_database`)
+Real-time monitoring of PostgreSQL database:
+- Database metrics (connections, cache hit ratio, etc.)
+- Table metrics (size, row counts, dead tuples)
+- Active query information
+- Lock information
+- Replication status
+- Configurable alerts
+
+```typescript
+// Example usage
+{
+  "connectionString": "postgresql://user:password@localhost:5432/dbname",
+  "includeTables": true, // Optional
+  "includeQueries": true, // Optional
+  "includeLocks": true, // Optional
+  "includeReplication": false, // Optional
+  "alertThresholds": { // Optional
+    "connectionPercentage": 80,
+    "longRunningQuerySeconds": 30,
+    "cacheHitRatio": 0.95,
+    "deadTuplesPercentage": 10,
+    "vacuumAge": 7
+  }
 }
 ```
 
