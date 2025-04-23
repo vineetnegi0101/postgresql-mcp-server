@@ -217,7 +217,10 @@ Real-time monitoring of PostgreSQL database:
          "command": "node",
          "args": ["/path/to/postgresql-mcp-server/build/index.js"],
          "disabled": false,
-         "alwaysAllow": []
+         "alwaysAllow": [],
+         "env": {
+           "POSTGRES_CONNECTION_STRING": "postgresql://username:password@server:port/dbname"
+         }
        }
      }
    }

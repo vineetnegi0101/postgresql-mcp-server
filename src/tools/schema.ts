@@ -51,21 +51,22 @@ export async function getSchemaInfo(
         message: `Schema information for table ${tableName}`,
         details: tableInfo
       };
-    } else {
-      // Get list of all tables
-      const tables = await db.query<{ table_name: string }>(
-        `SELECT table_name 
-         FROM information_schema.tables 
-         WHERE table_schema = 'public'
-         ORDER BY table_name`
-      );
-      
-      return {
-        success: true,
-        message: 'List of tables in database',
-        details: tables.map(t => t.table_name)
-      };
     }
+    
+    // Get list of all tables
+    const tables = await db.query<{ table_name: string }>(
+      `SELECT table_name 
+       FROM information_schema.tables 
+       WHERE table_schema = 'public'
+       ORDER BY table_name`
+    );
+    
+    return {
+      success: true,
+      message: 'List of tables in database',
+      details: tables.map(t => t.table_name)
+    };
+
   } catch (error) {
     return {
       success: false,

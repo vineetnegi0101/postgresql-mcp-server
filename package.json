@@ -24,6 +24,7 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "latest",
+    "@vercel/postgres": "^0.10.0",
     "pg": "^8.11.0",
     "pg-monitor": "^2.0.0"
   },

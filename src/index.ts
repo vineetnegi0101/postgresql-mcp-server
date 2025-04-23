@@ -30,9 +30,29 @@ import {
   dropTrigger,
   setTriggerState
 } from './tools/triggers.js';
+import { getEnums, createEnum } from './tools/enums.js';
 import { DatabaseConnection } from './utils/connection.js';
 
-// Define all tool definitions
+// Helper function to get connection string from arguments or environment variable
+function getConnectionString(connectionStringArg?: string): string {
+  // Use the provided connection string if available
+  if (connectionStringArg) {
+    return connectionStringArg;
+  }
+  
+  // Otherwise use the environment variable
+  const envConnectionString = process.env.POSTGRES_CONNECTION_STRING;
+  if (!envConnectionString) {
+    throw new McpError(
+      ErrorCode.MethodNotFound,
+      'No connection string provided. Set POSTGRES_CONNECTION_STRING environment variable or provide connectionString in the request.'
+    );
+  }
+  
+  return envConnectionString;
+}
+
+// Define all tool definitions using JSON Schema for inputSchema
 const TOOL_DEFINITIONS = [
   // Original tools
   {
@@ -43,7 +63,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable is set)'
         },
         analysisType: {
           type: 'string',
@@ -51,7 +71,7 @@ const TOOL_DEFINITIONS = [
           description: 'Type of analysis to perform'
         }
       },
-      required: ['connectionString']
+      required: []
     }
   },
   {
@@ -86,7 +106,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable is set)'
         },
         issue: {
           type: 'string',
@@ -109,7 +129,7 @@ const TOOL_DEFINITIONS = [
     }
   },
   
-  // New schema management tools
+  // Schema management tools
   {
     name: 'get_schema_info',
     description: 'Get schema information for a database or specific table',
@@ -221,8 +241,67 @@ const TOOL_DEFINITIONS = [
       required: ['connectionString', 'tableName', 'operations']
     }
   },
+
+  // Enum management tools (Define with JSON Schema)
+  {
+    name: 'get_enums',
+    description: 'Get information about PostgreSQL ENUM types',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connectionString: {
+          type: 'string',
+          description: 'PostgreSQL connection string'
+        },
+        schema: {
+          type: 'string',
+          description: 'Schema name (defaults to public)',
+          default: 'public'
+        },
+        enumName: {
+          type: 'string',
+          description: 'Optional specific ENUM name to filter by'
+        }
+      },
+      required: ['connectionString']
+    }
+  },
+  {
+    name: 'create_enum',
+    description: 'Create a new ENUM type in the database',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connectionString: {
+          type: 'string',
+          description: 'PostgreSQL connection string'
+        },
+        enumName: {
+          type: 'string',
+          description: 'Name of the ENUM type to create'
+        },
+        values: {
+          type: 'array',
+          description: 'List of values for the ENUM type',
+          items: { type: 'string' },
+          minItems: 1
+        },
+        schema: {
+          type: 'string',
+          description: 'Schema name (defaults to public)',
+          default: 'public'
+        },
+        ifNotExists: {
+          type: 'boolean',
+          description: 'Include IF NOT EXISTS clause',
+          default: false
+        }
+      },
+      required: ['connectionString', 'enumName', 'values']
+    }
+  },
   
-  // New data migration tools
+  // Data migration tools
   {
     name: 'export_table_data',
     description: 'Export table data to JSON or CSV format',
@@ -329,7 +408,7 @@ const TOOL_DEFINITIONS = [
     }
   },
   
-  // New monitoring tool
+  // Monitoring tool
   {
     name: 'monitor_database',
     description: 'Get real-time monitoring information for a PostgreSQL database',
@@ -845,10 +924,11 @@ class PostgreSQLServer {
           // Original tools
           case 'analyze_database': {
             const { connectionString, analysisType } = request.params.arguments as {
-              connectionString: string;
+              connectionString?: string;
               analysisType?: 'configuration' | 'performance' | 'security';
             };
-            const result = await analyzeDatabase(connectionString, analysisType);
+            const connString = getConnectionString(connectionString);
+            const result = await analyzeDatabase(connString, analysisType);
             return {
               content: [
                 {
@@ -887,11 +967,12 @@ class PostgreSQLServer {
 
           case 'debug_database': {
             const { connectionString, issue, logLevel } = request.params.arguments as {
-              connectionString: string;
+              connectionString?: string;
               issue: 'connection' | 'performance' | 'locks' | 'replication';
               logLevel?: 'info' | 'debug' | 'trace';
             };
-            const result = await debugDatabase(connectionString, issue, logLevel);
+            const connString = getConnectionString(connectionString);
+            const result = await debugDatabase(connString, issue, logLevel);
             return {
               content: [
                 {
@@ -905,10 +986,11 @@ class PostgreSQLServer {
           // Schema management tools
           case 'get_schema_info': {
             const { connectionString, tableName } = request.params.arguments as {
-              connectionString: string;
+              connectionString?: string;
               tableName?: string;
             };
-            const result = await getSchemaInfo(connectionString, tableName);
+            const connString = getConnectionString(connectionString);
+            const result = await getSchemaInfo(connString, tableName);
             return {
               content: [
                 {
@@ -921,11 +1003,64 @@ class PostgreSQLServer {
           
           case 'create_table': {
             const { connectionString, tableName, columns } = request.params.arguments as {
-              connectionString: string;
+              connectionString?: string;
               tableName: string;
-              columns: { name: string; type: string; nullable?: boolean; default?: string }[];
+              columns: Array<{
+                name: string;
+                type: string;
+                nullable?: boolean;
+                default?: string;
+              }>;
             };
-            const result = await createTable(connectionString, tableName, columns);
+            const connString = getConnectionString(connectionString);
+            const result = await createTable(connString, tableName, columns);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Table ${tableName} created successfully with ${columns.length} columns.`
+                }
+              ]
+            };
+          }
+          
+          case 'alter_table': {
+            const { connectionString, tableName, operations } = request.params.arguments as {
+              connectionString?: string;
+              tableName: string;
+              operations: Array<{
+                type: 'add' | 'alter' | 'drop';
+                columnName: string;
+                dataType?: string;
+                nullable?: boolean;
+                default?: string;
+              }>;
+            };
+            const connString = getConnectionString(connectionString);
+            const result = await alterTable(connString, tableName, operations);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Table ${tableName} altered successfully with ${operations.length} operations.`
+                }
+              ]
+            };
+          }
+          
+          // Enum management handlers (Call imported functions)
+          case 'get_enums': {
+            const { connectionString, schema, enumName } = request.params.arguments as {
+              connectionString?: string;
+              schema?: string; 
+              enumName?: string;
+            };
+            const connString = getConnectionString(connectionString);
+            const result = await getEnums({ 
+              connectionString: connString, 
+              schema: schema ?? 'public', 
+              enumName 
+            }); 
             return {
               content: [
                 {
@@ -936,24 +1071,27 @@ class PostgreSQLServer {
             };
           }
           
-          case 'alter_table': {
-            const { connectionString, tableName, operations } = request.params.arguments as {
-              connectionString: string;
-              tableName: string;
-              operations: {
-                type: 'add' | 'alter' | 'drop';
-                columnName: string;
-                dataType: string;
-                nullable?: boolean;
-                default?: string;
-              }[];
+          case 'create_enum': {
+            const { connectionString, enumName, values, schema, ifNotExists } = request.params.arguments as {
+              connectionString?: string;
+              enumName: string;
+              values: string[];
+              schema?: string; 
+              ifNotExists?: boolean; 
             };
-            const result = await alterTable(connectionString, tableName, operations);
+            const connString = getConnectionString(connectionString);
+            const result = await createEnum({ 
+              connectionString: connString, 
+              enumName, 
+              values, 
+              schema: schema ?? 'public', 
+              ifNotExists: ifNotExists ?? false 
+            });
             return {
               content: [
                 {
                   type: 'text',
-                  text: JSON.stringify(result, null, 2)
+                  text: JSON.stringify(result, null, 2) 
                 }
               ]
             };
@@ -962,19 +1100,20 @@ class PostgreSQLServer {
           // Data migration tools
           case 'export_table_data': {
             const { connectionString, tableName, outputPath, where, limit, format } = request.params.arguments as {
-              connectionString: string;
+              connectionString?: string;
               tableName: string;
               outputPath: string;
               where?: string;
               limit?: number;
               format?: 'json' | 'csv';
             };
-            const result = await exportTableData(connectionString, tableName, outputPath, { where, limit, format });
+            const connString = getConnectionString(connectionString);
+            const result = await exportTableData(connString, tableName, outputPath, { where, limit, format });
             return {
               content: [
                 {
                   type: 'text',
-                  text: JSON.stringify(result, null, 2)
+                  text: `Data from table ${tableName} exported successfully to ${outputPath}`
                 }
               ]
             };
@@ -982,19 +1121,20 @@ class PostgreSQLServer {
           
           case 'import_table_data': {
             const { connectionString, tableName, inputPath, truncateFirst, format, delimiter } = request.params.arguments as {
-              connectionString: string;
+              connectionString?: string;
               tableName: string;
               inputPath: string;
               truncateFirst?: boolean;
               format?: 'json' | 'csv';
               delimiter?: string;
             };
-            const result = await importTableData(connectionString, tableName, inputPath, { truncateFirst, format, delimiter });
+            const connString = getConnectionString(connectionString);
+            const result = await importTableData(connString, tableName, inputPath, { truncateFirst, format, delimiter });
             return {
               content: [
                 {
                   type: 'text',
-                  text: JSON.stringify(result, null, 2)
+                  text: `Data imported successfully into table ${tableName}`
                 }
               ]
             };
@@ -1022,7 +1162,7 @@ class PostgreSQLServer {
           // Monitoring tool
           case 'monitor_database': {
             const { connectionString, includeTables, includeQueries, includeLocks, includeReplication, alertThresholds } = request.params.arguments as {
-              connectionString: string;
+              connectionString?: string;
               includeTables?: boolean;
               includeQueries?: boolean;
               includeLocks?: boolean;
@@ -1035,12 +1175,13 @@ class PostgreSQLServer {
                 vacuumAge?: number;
               };
             };
-            const result = await monitorDatabase(connectionString, { 
-              includeTables, 
-              includeQueries, 
-              includeLocks, 
-              includeReplication, 
-              alertThresholds 
+            const connString = getConnectionString(connectionString);
+            const result = await monitorDatabase(connString, { 
+              includeTables,
+              includeQueries,
+              includeLocks,
+              includeReplication,
+              alertThresholds
             });
             return {
               content: [

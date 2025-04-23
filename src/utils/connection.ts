@@ -55,10 +55,17 @@ export class DatabaseConnection {
   /**
    * Connect to a PostgreSQL database
    */
-  public async connect(connectionString: string, options: ConnectionOptions = {}): Promise<void> {
+  public async connect(connectionString?: string, options: ConnectionOptions = {}): Promise<void> {
     try {
+      // Use environment variable if connection string is not provided
+      const connString = connectionString || process.env.POSTGRES_CONNECTION_STRING;
+      
+      if (!connString) {
+        throw new Error('No connection string provided and POSTGRES_CONNECTION_STRING environment variable is not set');
+      }
+      
       // If already connected to this database, reuse the connection
-      if (this.pool && this.connectionString === connectionString) {
+      if (this.pool && this.connectionString === connString) {
         return;
       }
       
@@ -67,16 +74,16 @@ export class DatabaseConnection {
         await this.disconnect();
       }
       
-      this.connectionString = connectionString;
+      this.connectionString = connString;
       this.connectionOptions = options;
       
       // Check if we have a cached pool for this connection string
-      if (poolCache.has(connectionString)) {
-        this.pool = poolCache.get(connectionString)!;
+      if (poolCache.has(connString)) {
+        this.pool = poolCache.get(connString)!;
       } else {
         // Create a new pool
         const config: PoolConfig = {
-          connectionString,
+          connectionString: connString,
           max: options.maxConnections || 20,
           idleTimeoutMillis: options.idleTimeoutMillis || 30000,
           connectionTimeoutMillis: options.connectionTimeoutMillis || 2000,
@@ -93,7 +100,7 @@ export class DatabaseConnection {
         });
         
         // Cache the pool for future use
-        poolCache.set(connectionString, this.pool);
+        poolCache.set(connString, this.pool);
       }
 
       // Test connection
@@ -117,7 +124,7 @@ export class DatabaseConnection {
       
       if (this.pool) {
         // Remove from cache if connection failed
-        poolCache.delete(connectionString);
+        poolCache.delete(this.connectionString);
         await this.pool.end();
         this.pool = null;
       }
