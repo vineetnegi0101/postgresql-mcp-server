@@ -21,7 +21,8 @@ import {
   enableRLS, 
   disableRLS, 
   createRLSPolicy, 
-  dropRLSPolicy, 
+  dropRLSPolicy,
+  editRLSPolicy, 
   getRLSPolicies 
 } from './tools/functions.js';
 import {
@@ -868,7 +869,48 @@ const TOOL_DEFINITIONS = [
       },
       required: ['connectionString', 'triggerName', 'tableName', 'enable']
     }
-  }
+  },
+
+  // Edit RLS Policy Tool
+  {
+    name: 'edit_rls_policy',
+    description: 'Edit an existing Row-Level Security policy',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connectionString: {
+          type: 'string',
+          description: 'PostgreSQL connection string'
+        },
+        tableName: {
+          type: 'string',
+          description: 'Name of the table the policy is on'
+        },
+        policyName: {
+          type: 'string',
+          description: 'Name of the policy to edit'
+        },
+        schema: {
+          type: 'string',
+          description: 'Schema name (defaults to public)'
+        },
+        roles: {
+          type: 'array',
+          description: 'New list of roles the policy applies to (e.g., ["role1", "role2"]. Use PUBLIC or leave empty for all roles)',
+          items: { type: 'string' }
+        },
+        using: {
+          type: 'string',
+          description: 'New USING expression for the policy'
+        },
+        check: {
+          type: 'string',
+          description: 'New WITH CHECK expression for the policy'
+        }
+      },
+      required: ['connectionString', 'tableName', 'policyName']
+    }
+  },
 ];
 
 class PostgreSQLServer {
@@ -885,7 +927,7 @@ class PostgreSQLServer {
           tools: TOOL_DEFINITIONS.reduce((acc, tool) => {
             acc[tool.name] = tool;
             return acc;
-          }, {} as Record<string, any>),
+          }, {} as Record<string, typeof TOOL_DEFINITIONS[number]>),
         },
       }
     );
@@ -1364,6 +1406,7 @@ class PostgreSQLServer {
                 ifExists
               }
             );
+            
             return {
               content: [
                 {
@@ -1490,6 +1533,37 @@ class PostgreSQLServer {
               enable,
               {
                 schema
+              }
+            );
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(result, null, 2)
+                }
+              ]
+            };
+          }
+
+          case 'edit_rls_policy': {
+            const { connectionString, tableName, policyName, schema, roles, using, check } = request.params.arguments as {
+              connectionString: string;
+              tableName: string;
+              policyName: string;
+              schema?: string;
+              roles?: string[];
+              using?: string;
+              check?: string;
+            };
+            const result = await editRLSPolicy(
+              connectionString,
+              tableName,
+              policyName,
+              {
+                schema,
+                roles,
+                using,
+                check
               }
             );
             return {

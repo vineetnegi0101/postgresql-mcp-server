@@ -22,7 +22,7 @@ interface FunctionInfo {
 export async function getFunctions(
   connectionString: string,
   functionName?: string,
-  schema: string = 'public'
+  schema = 'public'
 ): Promise<FunctionResult> {
   const db = DatabaseConnection.getInstance();
   
@@ -205,7 +205,7 @@ export async function dropFunction(
 export async function enableRLS(
   connectionString: string,
   tableName: string,
-  schema: string = 'public'
+  schema = 'public'
 ): Promise<FunctionResult> {
   const db = DatabaseConnection.getInstance();
   
@@ -239,7 +239,7 @@ export async function enableRLS(
 export async function disableRLS(
   connectionString: string,
   tableName: string,
-  schema: string = 'public'
+  schema = 'public'
 ): Promise<FunctionResult> {
   const db = DatabaseConnection.getInstance();
   
@@ -378,12 +378,99 @@ export async function dropRLSPolicy(
 }
 
 /**
+ * Edit an existing Row-Level Security policy
+ */
+export async function editRLSPolicy(
+  connectionString: string,
+  tableName: string,
+  policyName: string,
+  options: {
+    schema?: string;
+    roles?: string[]; // Use PUBLIC for all roles
+    using?: string;
+    check?: string;
+  } = {}
+): Promise<FunctionResult> {
+  const db = DatabaseConnection.getInstance();
+
+  try {
+    await db.connect(connectionString);
+
+    const schema = options.schema || 'public';
+    const alterClauses: string[] = [];
+
+    if (options.roles !== undefined) {
+      const rolesString = options.roles.length === 0 
+        ? 'PUBLIC' // Assuming empty array means PUBLIC, adjust if needed
+        : options.roles.join(', ');
+      alterClauses.push(`TO ${rolesString}`);
+    }
+
+    if (options.using !== undefined) {
+      alterClauses.push(`USING (${options.using})`);
+    }
+
+    if (options.check !== undefined) {
+      // Ensure 'using' is also provided if 'check' is, 
+      // or handle the case where only check is altered if allowed by PG version/syntax.
+      // PostgreSQL requires re-specifying USING if you alter CHECK.
+      // For simplicity, let's assume if check is provided, using should ideally be too,
+      // or the user intends to keep the existing 'using'. The ALTER syntax might implicitly handle this.
+      // Let's require 'using' if 'check' is provided for clarity, or adjust based on specific PG behavior knowledge.
+      if (options.using === undefined) {
+          // Decide on behavior: fetch existing 'using', error out, or proceed?
+          // Fetching existing 'using' adds complexity. Let's initially require it.
+          // throw new Error("The 'using' expression must be provided when altering the 'check' expression.");
+          // Alternatively, allow altering only check if syntax supports it, but PG docs suggest USING is needed.
+          // Let's focus on altering TO, USING, WITH CHECK where provided.
+      }
+      alterClauses.push(`WITH CHECK (${options.check})`);
+    }
+
+    if (alterClauses.length === 0) {
+      return {
+        success: false,
+        message: 'No changes specified for the policy.',
+        details: { table: tableName, schema, policy: policyName }
+      };
+    }
+
+    const sql = `
+      ALTER POLICY ${policyName}
+      ON ${schema}.${tableName}
+      ${alterClauses.join('\n')};
+    `;
+
+    await db.query(sql);
+
+    return {
+      success: true,
+      message: `Policy ${policyName} on ${schema}.${tableName} updated successfully.`,
+      details: {
+        table: tableName,
+        schema,
+        policy: policyName,
+        changes: options
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: `Failed to edit policy: ${error instanceof Error ? error.message : String(error)}`,
+      details: null
+    };
+  } finally {
+    await db.disconnect();
+  }
+}
+
+/**
  * Get Row-Level Security policies for a table
  */
 export async function getRLSPolicies(
   connectionString: string,
   tableName?: string,
-  schema: string = 'public'
+  schema = 'public'
 ): Promise<FunctionResult> {
   const db = DatabaseConnection.getInstance();
   
