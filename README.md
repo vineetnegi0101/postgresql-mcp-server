@@ -20,7 +20,6 @@ Analyzes PostgreSQL database configuration and performance metrics:
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Optional if env var set
   "analysisType": "performance" // Optional: "configuration" | "performance" | "security"
 }
 ```
@@ -51,7 +50,6 @@ Debug common PostgreSQL issues:
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "issue": "performance", // Required: "connection" | "performance" | "locks" | "replication"
   "logLevel": "debug" // Optional: "info" | "debug" | "trace"
 }
@@ -69,7 +67,6 @@ Get detailed schema information for a database or specific table:
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "tableName": "users" // Optional: specific table to get info for
 }
 ```
@@ -83,7 +80,6 @@ Create a new table with specified columns:
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "tableName": "users", // Required
   "columns": [ // Required
     { "name": "id", "type": "SERIAL", "nullable": false },
@@ -103,7 +99,6 @@ Modify existing tables:
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "tableName": "users", // Required
   "operations": [ // Required
     { "type": "add", "columnName": "last_login", "dataType": "TIMESTAMP" },
@@ -119,7 +114,6 @@ Get information about PostgreSQL ENUM types.
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "schema": "public", // Optional
   "enumName": "user_status" // Optional
 }
@@ -131,7 +125,6 @@ Create a new ENUM type in the database.
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "enumName": "order_status", // Required
   "values": ["pending", "processing", "shipped", "delivered"], // Required
   "schema": "public", // Optional
@@ -150,7 +143,6 @@ Export table data to JSON or CSV format:
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "tableName": "users", // Required
   "outputPath": "./exports/users.json", // Required
   "where": "created_at > '2023-01-01'", // Optional
@@ -168,7 +160,6 @@ Import data from JSON or CSV files:
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "tableName": "users", // Required
   "inputPath": "./imports/users.json", // Required
   "truncateFirst": false, // Optional
@@ -207,7 +198,6 @@ Real-time monitoring of PostgreSQL database:
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "includeTables": true, // Optional
   "includeQueries": true, // Optional
   "includeLocks": true, // Optional
@@ -230,7 +220,6 @@ Get information about PostgreSQL functions.
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "functionName": "calculate_total", // Optional
   "schema": "public" // Optional
 }
@@ -242,7 +231,6 @@ Create or replace a PostgreSQL function.
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "functionName": "get_user_count", // Required
   "parameters": "", // Required (empty if no params)
   "returnType": "integer", // Required
@@ -261,7 +249,6 @@ Drop a PostgreSQL function.
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "functionName": "old_function", // Required
   "parameters": "integer", // Optional: required for overloaded functions
   "schema": "public", // Optional
@@ -278,7 +265,6 @@ Enable Row-Level Security on a table.
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "tableName": "sensitive_data", // Required
   "schema": "secure" // Optional
 }
@@ -290,7 +276,6 @@ Disable Row-Level Security on a table.
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "tableName": "sensitive_data", // Required
   "schema": "secure" // Optional
 }
@@ -302,7 +287,6 @@ Create a Row-Level Security policy.
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "tableName": "documents", // Required
   "policyName": "user_can_see_own_docs", // Required
   "using": "owner_id = current_user_id()", // Required
@@ -320,7 +304,6 @@ Edit an existing Row-Level Security policy.
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "tableName": "documents", // Required
   "policyName": "user_can_see_own_docs", // Required
   "schema": "public", // Optional
@@ -336,7 +319,6 @@ Drop a Row-Level Security policy.
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "tableName": "documents", // Required
   "policyName": "old_policy", // Required
   "schema": "public", // Optional
@@ -350,7 +332,6 @@ Get Row-Level Security policies.
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "tableName": "documents", // Optional
   "schema": "public" // Optional
 }
@@ -364,7 +345,6 @@ Get information about PostgreSQL triggers.
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "tableName": "audit_log", // Optional
   "schema": "public" // Optional
 }
@@ -376,7 +356,6 @@ Create a PostgreSQL trigger.
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "triggerName": "log_user_update", // Required
   "tableName": "users", // Required
   "functionName": "audit_user_change", // Required
@@ -395,7 +374,6 @@ Drop a PostgreSQL trigger.
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "triggerName": "old_trigger", // Required
   "tableName": "users", // Required
   "schema": "public", // Optional
@@ -410,7 +388,6 @@ Enable or disable a PostgreSQL trigger.
 ```typescript
 // Example usage
 {
-  "connectionString": "postgresql://user:password@localhost:5432/dbname", // Required
   "triggerName": "log_user_update", // Required
   "tableName": "users", // Required
   "enable": false, // Required: true to enable, false to disable
@@ -435,13 +412,46 @@ Enable or disable a PostgreSQL trigger.
    ```bash
    npm run build
    ```
-4. Add to MCP settings file:
+4. Add to MCP settings file (e.g., in your IDE's settings or a global MCP configuration):
+
+   There are a few ways to configure the connection string for the server, with the following order of precedence:
+   1. **Tool-Specific Argument**: If a `connectionString` is provided directly in the arguments when calling a specific tool, that value will be used for that call.
+   2. **CLI Argument**: You can provide a default connection string when starting the server using the `-cs` or `--connection-string` argument.
+   3. **Environment Variable**: If neither of the above is provided, the server will look for a `POSTGRES_CONNECTION_STRING` environment variable.
+
+   If no connection string is found through any of these methods, tools requiring a database connection will fail.
+
+   **Example using CLI argument in MCP settings:**
    ```json
    {
      "mcpServers": {
        "postgresql-mcp": {
          "command": "node",
-         "args": ["/path/to/postgresql-mcp-server/build/index.js"],
+         "args": [
+           "/path/to/postgresql-mcp-server/build/index.js",
+           "--connection-string",
+           "postgresql://username:password@server:port/dbname"
+           // Optionally, add "--tools-config", "/path/to/your/mcp-tools.json"
+         ],
+         "disabled": false,
+         "alwaysAllow": []
+         // Note: 'env' block for POSTGRES_CONNECTION_STRING can still be used as a fallback
+         // if --connection-string is not provided in args.
+       }
+     }
+   }
+   ```
+
+   **Example using environment variable (if not using CLI arg):**
+   ```json
+   {
+     "mcpServers": {
+       "postgresql-mcp": {
+         "command": "node",
+         "args": [
+           "/path/to/postgresql-mcp-server/build/index.js"
+           // Optionally, add "--tools-config", "/path/to/your/mcp-tools.json"
+         ],
          "disabled": false,
          "alwaysAllow": [],
          "env": {
@@ -451,7 +461,29 @@ Enable or disable a PostgreSQL trigger.
      }
    }
    ```
-   *Note: Providing the `POSTGRES_CONNECTION_STRING` environment variable here makes the `connectionString` argument optional for most tools.*
+   *Using the `--connection-string` CLI argument or the `POSTGRES_CONNECTION_STRING` environment variable makes the `connectionString` argument optional for most tool calls.*
+
+## Tool Configuration
+
+The server supports filtering which tools are enabled via an external JSON configuration file.
+
+- **CLI Option**: Use `-tc <path>` or `--tools-config <path>` to specify the path to your tools configuration file.
+- **File Format**: The JSON file should contain an object with an `enabledTools` key, which holds an array of tool name strings.
+
+  **Example `mcp-tools.json`:**
+  ```json
+  {
+    "enabledTools": [
+      "get_schema_info",
+      "analyze_database",
+      "export_table_data"
+    ]
+  }
+  ```
+- **Behavior**:
+  - If the configuration file is provided and valid, only the listed tools will be enabled.
+  - If the file is not provided, is invalid, or cannot be read, all tools will be enabled by default.
+  - The server will log which tools are enabled based on this configuration.
 
 ## Development
 
@@ -462,7 +494,12 @@ Enable or disable a PostgreSQL trigger.
 ## Security Considerations
 
 1. Connection Security
-   - Uses connection pooling via `@vercel/postgres` and `pg`.
+   - The server determines the database connection string based on the following precedence:
+     1.  `connectionString` provided directly in a tool's arguments.
+     2.  `--connection-string` CLI argument used when starting the server.
+     3.  `POSTGRES_CONNECTION_STRING` environment variable.
+   - Ensure that connection strings (especially those with credentials) are managed securely.
+   - Uses connection pooling via `pg` (previously `@vercel/postgres`).
    - Validates connection strings.
    - Supports SSL/TLS connections (configure via connection string).
 
@@ -473,18 +510,20 @@ Enable or disable a PostgreSQL trigger.
 
 3. Authentication
    - Relies on PostgreSQL's authentication mechanisms via the connection string.
-   - Securely manage your database credentials. Do not hardcode them in client requests; use the environment variable setup during installation.
+   - Securely manage your database credentials. Do not hardcode them in client requests if avoidable; prefer using the `--connection-string` CLI option or the `POSTGRES_CONNECTION_STRING` environment variable when configuring the server.
 
 ## Best Practices
 
-1. Always use secure connection strings with proper credentials, preferably configured via the `POSTGRES_CONNECTION_STRING` environment variable.
-2. Follow production security recommendations for sensitive environments.
-3. Regularly monitor and analyze database performance using the `monitor_database` tool.
-4. Keep PostgreSQL version up to date.
-5. Implement proper backup strategies independently.
-6. Use connection pooling for better resource management (handled internally).
-7. Implement proper error handling and logging.
-8. Regular security audits and updates.
+1. Configure the default database connection string securely using the `--connection-string` CLI option or the `POSTGRES_CONNECTION_STRING` environment variable.
+2. If a tool needs to connect to a *different* database than the default, provide the `connectionString` directly in that tool's arguments.
+3. Always use secure connection strings with proper credentials, preferably configured via the `POSTGRES_CONNECTION_STRING` environment variable.
+4. Follow production security recommendations for sensitive environments.
+5. Regularly monitor and analyze database performance using the `monitor_database` tool.
+6. Keep PostgreSQL version up to date.
+7. Implement proper backup strategies independently.
+8. Use connection pooling for better resource management (handled internally).
+9. Implement proper error handling and logging.
+10. Regular security audits and updates.
 
 ## Error Handling
 

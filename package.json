@@ -1,41 +1,40 @@
 {
-  "name": "postgresql-mcp-server",
+  "name": "postgres-mcp",
   "version": "0.2.0",
-  "description": "MCP server for PostgreSQL database management, schema management, data migration, and monitoring",
-  "type": "module",
+  "description": "PostgreSQL MCP Server",
   "main": "build/index.js",
+  "type": "module",
+  "bin": {
+    "postgres-mcp": "./build/index.js"
+  },
   "scripts": {
-    "build": "tsc && node -e \"process.platform !== 'win32' && require('child_process').execSync('chmod +x build/index.js')\"",
+    "build": "tsc",
     "start": "node build/index.js",
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsc -w & nodemon build/index.js",
     "lint": "eslint . --ext .ts",
-    "test": "vitest"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
     "postgresql",
     "mcp",
-    "database",
-    "management",
-    "schema",
-    "migration",
-    "monitoring"
+    "database"
   ],
-  "author": "",
+  "author": "Your Name",
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "latest",
-    "@vercel/postgres": "^0.10.0",
-    "pg": "^8.11.0",
-    "pg-monitor": "^2.0.0"
+    "commander": "^12.1.0",
+    "pg": "^8.11.3",
+    "pg-monitor": "^3.0.0",
+    "pg-query-stream": "^4.2.4"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "@types/pg": "^8.10.0",
-    "@typescript-eslint/eslint-plugin": "^6.0.0",
-    "@typescript-eslint/parser": "^6.0.0",
-    "eslint": "^8.0.0",
-    "tsx": "^4.0.0",
-    "typescript": "^5.0.0",
-    "vitest": "^1.0.0"
+    "@types/node": "^20.11.17",
+    "@types/pg": "^8.10.2",
+    "@typescript-eslint/eslint-plugin": "^7.1.0",
+    "@typescript-eslint/parser": "^7.1.0",
+    "eslint": "^8.57.0",
+    "nodemon": "^3.0.3",
+    "typescript": "^5.3.3"
   }
 }

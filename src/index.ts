@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { program } from 'commander';
+import fs from 'node:fs';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -34,23 +36,36 @@ import {
 import { getEnums, createEnum } from './tools/enums.js';
 import { DatabaseConnection } from './utils/connection.js';
 
-// Helper function to get connection string from arguments or environment variable
+// Initialize commander
+program
+  .version('0.2.0')
+  .option('-cs, --connection-string <string>', 'PostgreSQL connection string')
+  .option('-tc, --tools-config <path>', 'Path to tools configuration JSON file')
+  .parse(process.argv);
+
+const options = program.opts();
+
+// Updated helper function to get connection string
 function getConnectionString(connectionStringArg?: string): string {
-  // Use the provided connection string if available
+  // 1. Use connectionStringArg from tool's direct arguments if provided
   if (connectionStringArg) {
     return connectionStringArg;
   }
-  
-  // Otherwise use the environment variable
-  const envConnectionString = process.env.POSTGRES_CONNECTION_STRING;
-  if (!envConnectionString) {
-    throw new McpError(
-      ErrorCode.MethodNotFound,
-      'No connection string provided. Set POSTGRES_CONNECTION_STRING environment variable or provide connectionString in the request.'
-    );
+  // 2. Else, use CLI option if provided
+  const cliConnectionString = options.connectionString;
+  if (cliConnectionString) {
+    return cliConnectionString;
   }
-  
-  return envConnectionString;
+  // 3. Else, use environment variable
+  const envConnectionString = process.env.POSTGRES_CONNECTION_STRING;
+  if (envConnectionString) {
+    return envConnectionString;
+  }
+  // 4. If none are found, throw error
+  throw new McpError(
+    ErrorCode.InvalidParams, // Changed from InvalidArgument to InvalidParams
+    'No connection string provided. Provide one in the tool arguments, via the --connection-string CLI option, or set the POSTGRES_CONNECTION_STRING environment variable.'
+  );
 }
 
 // Define all tool definitions using JSON Schema for inputSchema
@@ -64,7 +79,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable is set)'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         analysisType: {
           type: 'string',
@@ -72,7 +87,7 @@ const TOOL_DEFINITIONS = [
           description: 'Type of analysis to perform'
         }
       },
-      required: []
+      required: [] // connectionString is truly optional here
     }
   },
   {
@@ -107,7 +122,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable is set)'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         issue: {
           type: 'string',
@@ -126,7 +141,7 @@ const TOOL_DEFINITIONS = [
           description: 'Logging detail level'
         }
       },
-      required: ['connectionString', 'issue']
+      required: ['issue'] // Removed 'connectionString'
     }
   },
   
@@ -139,14 +154,14 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         tableName: {
           type: 'string',
           description: 'Optional table name to get detailed schema for'
         }
       },
-      required: ['connectionString']
+      required: [] // Removed 'connectionString'
     }
   },
   {
@@ -157,7 +172,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         tableName: {
           type: 'string',
@@ -190,7 +205,7 @@ const TOOL_DEFINITIONS = [
           }
         }
       },
-      required: ['connectionString', 'tableName', 'columns']
+      required: ['tableName', 'columns'] // Removed 'connectionString'
     }
   },
   {
@@ -201,7 +216,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         tableName: {
           type: 'string',
@@ -239,7 +254,7 @@ const TOOL_DEFINITIONS = [
           }
         }
       },
-      required: ['connectionString', 'tableName', 'operations']
+      required: ['tableName', 'operations'] // Removed 'connectionString'
     }
   },
 
@@ -252,7 +267,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         schema: {
           type: 'string',
@@ -264,7 +279,7 @@ const TOOL_DEFINITIONS = [
           description: 'Optional specific ENUM name to filter by'
         }
       },
-      required: ['connectionString']
+      required: [] // Removed 'connectionString'
     }
   },
   {
@@ -275,7 +290,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         enumName: {
           type: 'string',
@@ -298,7 +313,7 @@ const TOOL_DEFINITIONS = [
           default: false
         }
       },
-      required: ['connectionString', 'enumName', 'values']
+      required: ['enumName', 'values'] // Removed 'connectionString'
     }
   },
   
@@ -311,7 +326,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         tableName: {
           type: 'string',
@@ -319,7 +334,7 @@ const TOOL_DEFINITIONS = [
         },
         outputPath: {
           type: 'string',
-          description: 'Path to save the exported data'
+          description: 'absolute path to save the exported data'
         },
         where: {
           type: 'string',
@@ -336,7 +351,7 @@ const TOOL_DEFINITIONS = [
           description: 'Output format'
         }
       },
-      required: ['connectionString', 'tableName', 'outputPath']
+      required: ['tableName', 'outputPath'] // Removed 'connectionString'
     }
   },
   {
@@ -347,7 +362,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         tableName: {
           type: 'string',
@@ -355,7 +370,7 @@ const TOOL_DEFINITIONS = [
         },
         inputPath: {
           type: 'string',
-          description: 'Path to the file to import'
+          description: 'absolute path to the file to import'
         },
         truncateFirst: {
           type: 'boolean',
@@ -374,7 +389,7 @@ const TOOL_DEFINITIONS = [
           description: 'Delimiter for CSV files'
         }
       },
-      required: ['connectionString', 'tableName', 'inputPath']
+      required: ['tableName', 'inputPath'] // Removed 'connectionString'
     }
   },
   {
@@ -418,7 +433,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         includeTables: {
           type: 'boolean',
@@ -467,7 +482,7 @@ const TOOL_DEFINITIONS = [
           }
         }
       },
-      required: ['connectionString']
+      required: [] // Removed 'connectionString'
     }
   },
 
@@ -480,7 +495,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         functionName: {
           type: 'string',
@@ -491,7 +506,7 @@ const TOOL_DEFINITIONS = [
           description: 'Schema name (defaults to public)'
         }
       },
-      required: ['connectionString']
+      required: [] // Removed 'connectionString'
     }
   },
   {
@@ -502,7 +517,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         functionName: {
           type: 'string',
@@ -544,7 +559,7 @@ const TOOL_DEFINITIONS = [
           description: 'Whether to replace the function if it exists'
         }
       },
-      required: ['connectionString', 'functionName', 'parameters', 'returnType', 'functionBody']
+      required: ['functionName', 'parameters', 'returnType', 'functionBody'] // Removed 'connectionString'
     }
   },
   {
@@ -555,7 +570,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         functionName: {
           type: 'string',
@@ -578,7 +593,7 @@ const TOOL_DEFINITIONS = [
           description: 'Whether to include CASCADE clause'
         }
       },
-      required: ['connectionString', 'functionName']
+      required: ['functionName'] // Removed 'connectionString'
     }
   },
   
@@ -591,7 +606,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         tableName: {
           type: 'string',
@@ -602,7 +617,7 @@ const TOOL_DEFINITIONS = [
           description: 'Schema name (defaults to public)'
         }
       },
-      required: ['connectionString', 'tableName']
+      required: ['tableName'] // Removed 'connectionString'
     }
   },
   {
@@ -613,7 +628,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         tableName: {
           type: 'string',
@@ -624,7 +639,7 @@ const TOOL_DEFINITIONS = [
           description: 'Schema name (defaults to public)'
         }
       },
-      required: ['connectionString', 'tableName']
+      required: ['tableName'] // Removed 'connectionString'
     }
   },
   {
@@ -635,7 +650,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         tableName: {
           type: 'string',
@@ -671,7 +686,7 @@ const TOOL_DEFINITIONS = [
           description: 'Whether to replace the policy if it exists'
         }
       },
-      required: ['connectionString', 'tableName', 'policyName', 'using']
+      required: ['tableName', 'policyName', 'using'] // Removed 'connectionString'
     }
   },
   {
@@ -682,7 +697,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         tableName: {
           type: 'string',
@@ -701,7 +716,7 @@ const TOOL_DEFINITIONS = [
           description: 'Whether to include IF EXISTS clause'
         }
       },
-      required: ['connectionString', 'tableName', 'policyName']
+      required: ['tableName', 'policyName'] // Removed 'connectionString'
     }
   },
   {
@@ -712,7 +727,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         tableName: {
           type: 'string',
@@ -723,7 +738,7 @@ const TOOL_DEFINITIONS = [
           description: 'Schema name (defaults to public)'
         }
       },
-      required: ['connectionString']
+      required: [] // Removed 'connectionString'
     }
   },
 
@@ -736,7 +751,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         tableName: {
           type: 'string',
@@ -747,7 +762,7 @@ const TOOL_DEFINITIONS = [
           description: 'Schema name (defaults to public)'
         }
       },
-      required: ['connectionString']
+      required: [] // Removed 'connectionString'
     }
   },
   {
@@ -758,7 +773,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         triggerName: {
           type: 'string',
@@ -803,7 +818,7 @@ const TOOL_DEFINITIONS = [
           description: 'Whether to replace the trigger if it exists'
         }
       },
-      required: ['connectionString', 'triggerName', 'tableName', 'functionName']
+      required: ['triggerName', 'tableName', 'functionName'] // Removed 'connectionString'
     }
   },
   {
@@ -814,7 +829,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         triggerName: {
           type: 'string',
@@ -837,7 +852,7 @@ const TOOL_DEFINITIONS = [
           description: 'Whether to include CASCADE clause'
         }
       },
-      required: ['connectionString', 'triggerName', 'tableName']
+      required: ['triggerName', 'tableName'] // Removed 'connectionString'
     }
   },
   {
@@ -848,7 +863,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         triggerName: {
           type: 'string',
@@ -867,7 +882,7 @@ const TOOL_DEFINITIONS = [
           description: 'Schema name (defaults to public)'
         }
       },
-      required: ['connectionString', 'triggerName', 'tableName', 'enable']
+      required: ['triggerName', 'tableName', 'enable'] // Removed 'connectionString'
     }
   },
 
@@ -880,7 +895,7 @@ const TOOL_DEFINITIONS = [
       properties: {
         connectionString: {
           type: 'string',
-          description: 'PostgreSQL connection string'
+          description: 'PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'
         },
         tableName: {
           type: 'string',
@@ -908,15 +923,18 @@ const TOOL_DEFINITIONS = [
           description: 'New WITH CHECK expression for the policy'
         }
       },
-      required: ['connectionString', 'tableName', 'policyName']
+      required: ['tableName', 'policyName'] // Removed 'connectionString'
     }
   },
 ];
 
 class PostgreSQLServer {
   private server: Server;
+  private enabledTools: typeof TOOL_DEFINITIONS;
 
   constructor() {
+    this.enabledTools = this.loadAndFilterTools();
+
     this.server = new Server(
       {
         name: 'postgresql-mcp-server',
@@ -924,7 +942,7 @@ class PostgreSQLServer {
       },
       {
         capabilities: {
-          tools: TOOL_DEFINITIONS.reduce((acc, tool) => {
+          tools: this.enabledTools.reduce((acc, tool) => {
             acc[tool.name] = tool;
             return acc;
           }, {} as Record<string, typeof TOOL_DEFINITIONS[number]>),
@@ -949,6 +967,31 @@ class PostgreSQLServer {
     });
   }
 
+  private loadAndFilterTools(): typeof TOOL_DEFINITIONS {
+    let tools = [...TOOL_DEFINITIONS];
+    const toolsConfigPath = options.toolsConfig;
+
+    if (toolsConfigPath) {
+      try {
+        const configContent = fs.readFileSync(toolsConfigPath, 'utf-8');
+        const config = JSON.parse(configContent);
+
+        if (config && Array.isArray(config.enabledTools) && config.enabledTools.every((t: unknown) => typeof t === 'string')) {
+          const enabledToolNames = new Set(config.enabledTools as string[]);
+          tools = TOOL_DEFINITIONS.filter(tool => enabledToolNames.has(tool.name));
+          console.error(`[MCP Info] Loaded tools configuration from ${toolsConfigPath}. Enabled tools: ${tools.map(t => t.name).join(', ')}`);
+        } else {
+          console.error(`[MCP Warning] Invalid tools configuration file format at ${toolsConfigPath}. Expected an object with an 'enabledTools' array of strings. All tools will be enabled.`);
+        }
+      } catch (error) {
+        console.error(`[MCP Warning] Could not read or parse tools configuration file at ${toolsConfigPath}. Error: ${error instanceof Error ? error.message : String(error)}. All tools will be enabled.`);
+      }
+    } else {
+      console.error('[MCP Info] No tools configuration file provided. All tools will be enabled.');
+    }
+    return tools;
+  }
+
   private async cleanup(): Promise<void> {
     console.error('Shutting down PostgreSQL MCP server...');
     await DatabaseConnection.cleanupPools();
@@ -957,11 +1000,21 @@ class PostgreSQLServer {
 
   private setupToolHandlers(): void {
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: TOOL_DEFINITIONS
+      tools: this.enabledTools
     }));
 
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
+        const toolName = request.params.name;
+        const isToolEnabled = this.enabledTools.some(tool => tool.name === toolName);
+
+        if (!isToolEnabled) {
+          throw new McpError(
+            ErrorCode.MethodNotFound,
+            `Tool '${toolName}' is not enabled or does not exist.`
+          );
+        }
+
         switch (request.params.name) {
           // Original tools
           case 'analyze_database': {
