@@ -1,8 +1,11 @@
 import { DatabaseConnection } from '../utils/connection.js';
+import type { PostgresTool, GetConnectionStringFn, ToolOutput } from '../types/tool.js';
+import { analyzeDatabase as originalAnalyzeDatabase } from './analyze.js'; // Assuming it's from a .js file initially
+import { z } from 'zod';
 
 interface AnalysisResult {
   version: string;
-  settings: Record<string, any>;
+  settings: Record<string, string>;
   metrics: {
     connections: number;
     activeQueries: number;
@@ -11,6 +14,46 @@ interface AnalysisResult {
   };
   recommendations: string[];
 }
+
+// Definition previously in TOOL_DEFINITIONS
+const toolDefinition = {
+  name: 'pg_analyze_database',
+  description: 'Analyze PostgreSQL database configuration and performance',
+  inputSchema: z.object({
+    connectionString: z.string().optional()
+      .describe('PostgreSQL connection string (optional if POSTGRES_CONNECTION_STRING environment variable or --connection-string CLI option is set)'),
+    analysisType: z.enum(['configuration', 'performance', 'security']).optional()
+      .describe('Type of analysis to perform')
+  })
+};
+
+export const analyzeDatabaseTool: PostgresTool = {
+  name: toolDefinition.name,
+  description: toolDefinition.description,
+  inputSchema: toolDefinition.inputSchema,
+  execute: async (args: { connectionString?: string; analysisType?: 'configuration' | 'performance' | 'security'; }, getConnectionString: GetConnectionStringFn): Promise<ToolOutput> => {
+    const { connectionString: connStringArg, analysisType } = args;
+
+    if (!analysisType || !['configuration', 'performance', 'security'].includes(analysisType)) {
+        return {
+            content: [{ type: 'text', text: 'Error: analysisType is required and must be one of [\'configuration\', \'performance\', \'security\'].' }],
+            isError: true,
+        };
+    }
+
+    const resolvedConnString = getConnectionString(connStringArg);
+    const result = await originalAnalyzeDatabase(resolvedConnString, analysisType);
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(result, null, 2)
+        }
+      ]
+    };
+  },
+};
 
 export async function analyzeDatabase(
   connectionString: string,
@@ -42,7 +85,7 @@ async function getVersion(): Promise<string> {
   return result[0].version;
 }
 
-async function getSettings(): Promise<Record<string, any>> {
+async function getSettings(): Promise<Record<string, string>> {
   const db = DatabaseConnection.getInstance();
   const result = await db.query<{ name: string; setting: string; unit: string }>(
     'SELECT name, setting, unit FROM pg_settings WHERE name IN ($1, $2, $3, $4, $5)',
@@ -102,7 +145,7 @@ async function getMetrics(): Promise<AnalysisResult['metrics']> {
   // If rawRatio is a string, parseFloat it.
   // If it's already a number, just convert using Number().
   if (typeof rawRatio === 'string') {
-    ratio = parseFloat(rawRatio);
+    ratio = Number.parseFloat(rawRatio);
   } else {
     ratio = Number(rawRatio);
   }
@@ -123,9 +166,9 @@ async function getMetrics(): Promise<AnalysisResult['metrics']> {
   );
 
   return {
-    connections: parseInt(connections[0].count),
-    activeQueries: parseInt(activeQueries[0].count),
-    cacheHitRatio: parseFloat(ratio.toFixed(2)),
+    connections: Number.parseInt(connections[0].count),
+    activeQueries: Number.parseInt(activeQueries[0].count),
+    cacheHitRatio: Number.parseFloat(ratio.toFixed(2)),
     tableSizes: tableSizes.reduce((acc: Record<string, string>, row: { tablename: string; size: string }) => {
       acc[row.tablename] = row.size;
       return acc;
@@ -135,7 +178,7 @@ async function getMetrics(): Promise<AnalysisResult['metrics']> {
 
 async function generateRecommendations(
   type: 'configuration' | 'performance' | 'security',
-  settings: Record<string, any>,
+  settings: Record<string, string>,
   metrics: AnalysisResult['metrics']
 ): Promise<string[]> {
   const recommendations: string[] = [];
@@ -145,7 +188,7 @@ async function generateRecommendations(
       recommendations.push('Consider increasing shared_buffers to improve cache hit ratio');
     }
 
-    if (metrics.connections > parseInt(settings.max_connections) * 0.8) {
+    if (metrics.connections > Number.parseInt(settings.max_connections) * 0.8) {
       recommendations.push('High connection usage detected. Consider increasing max_connections or implementing connection pooling');
     }
   }
@@ -158,7 +201,7 @@ async function generateRecommendations(
       "SELECT count(*) FROM pg_user WHERE usesuper = true"
     );
     
-    if (parseInt(superusers[0].count) > 1) {
+    if (Number.parseInt(superusers[0].count) > 1) {
       recommendations.push('Multiple superuser accounts detected. Review and reduce if possible');
     }
 

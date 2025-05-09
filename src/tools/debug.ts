@@ -1,4 +1,7 @@
 import { DatabaseConnection } from '../utils/connection.js';
+import { z } from 'zod';
+import type { PostgresTool, GetConnectionStringFn, ToolOutput } from '../types/tool.js';
+import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 
 interface DebugResult {
   issue: string;
@@ -7,14 +10,12 @@ interface DebugResult {
   recommendations: string[];
 }
 
-type IssueType = 'connection' | 'performance' | 'locks' | 'replication';
-type LogLevel = 'info' | 'debug' | 'trace';
-
 interface UnusedIndex {
   schemaname: string;
   tablename: string;
   indexname: string;
   idx_scan: number;
+  replay_lag: string | null;
 }
 
 interface LockInfo {
@@ -37,17 +38,25 @@ interface ReplicationStatus {
   replay_lag: string | null;
 }
 
-export async function debugDatabase(
-  connectionString: string,
-  issue: IssueType,
-  logLevel: LogLevel = 'info'
+const DebugDatabaseInputSchema = z.object({
+  connectionString: z.string().optional(),
+  issue: z.enum(['connection', 'performance', 'locks', 'replication']),
+  logLevel: z.enum(['info', 'debug', 'trace']).optional().default('info'),
+});
+
+type DebugDatabaseInput = z.infer<typeof DebugDatabaseInputSchema>;
+
+async function executeDebugDatabase(
+  input: DebugDatabaseInput,
+  getConnectionString: GetConnectionStringFn
 ): Promise<DebugResult> {
+  const resolvedConnectionString = getConnectionString(input.connectionString);
   const db = DatabaseConnection.getInstance();
 
   try {
-    await db.connect(connectionString);
+    await db.connect(resolvedConnectionString);
 
-    switch (issue) {
+    switch (input.issue) {
       case 'connection':
         return await debugConnection(db);
       case 'performance':
@@ -57,12 +66,48 @@ export async function debugDatabase(
       case 'replication':
         return await debugReplication(db);
       default:
-        throw new Error(`Unsupported issue type: ${issue}`);
+        // This case should be unreachable due to Zod validation
+        throw new McpError(ErrorCode.InvalidParams, `Unsupported issue type: ${input.issue}`);
     }
   } finally {
+    // Ensure disconnect is called even if connect fails or other errors occur
     await db.disconnect();
   }
 }
+
+export const debugDatabaseTool: PostgresTool = {
+  name: 'pg_debug_database',
+  description: 'Debug common PostgreSQL issues',
+  inputSchema: DebugDatabaseInputSchema,
+  async execute(params: unknown, getConnectionString: GetConnectionStringFn): Promise<ToolOutput> {
+    const validationResult = DebugDatabaseInputSchema.safeParse(params);
+    if (!validationResult.success) {
+      const errorDetails = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+      return {
+        content: [{ type: 'text', text: `Invalid input: ${errorDetails}` }],
+        isError: true,
+      };
+    }
+    try {
+      const result = await executeDebugDatabase(validationResult.data, getConnectionString);
+      // Convert DebugResult to ToolOutput format
+      return {
+        content: [
+          { type: 'text', text: `Debug Result for Issue: ${result.issue}` },
+          { type: 'text', text: `Status: ${result.status}` },
+          { type: 'text', text: `Details:\n${result.details.join('\n')}` },
+          { type: 'text', text: `Recommendations:\n${result.recommendations.join('\n')}` },
+        ],
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: 'text', text: `Error debugging database: ${errorMessage}` }],
+        isError: true,
+      };
+    }
+  }
+};
 
 async function debugConnection(db: DatabaseConnection): Promise<DebugResult> {
   const result: DebugResult = {
@@ -81,8 +126,8 @@ async function debugConnection(db: DatabaseConnection): Promise<DebugResult> {
       'SELECT count(*) FROM pg_stat_activity'
     );
 
-    const max = parseInt(maxConns[0].setting);
-    const current = parseInt(currentConns[0].count);
+    const max = Number.parseInt(maxConns[0].setting);
+    const current = Number.parseInt(currentConns[0].count);
     const percentage = (current / max) * 100;
 
     result.details.push(
@@ -102,7 +147,7 @@ async function debugConnection(db: DatabaseConnection): Promise<DebugResult> {
     const idleConns = await db.query<{ count: string }>(
       "SELECT count(*) FROM pg_stat_activity WHERE state = 'idle'"
     );
-    const idleCount = parseInt(idleConns[0].count);
+    const idleCount = Number.parseInt(idleConns[0].count);
     if (idleCount > 5) {
       result.details.push(`High number of idle connections: ${idleCount}`);
       result.recommendations.push(
@@ -140,9 +185,9 @@ async function debugPerformance(db: DatabaseConnection): Promise<DebugResult> {
     if (slowQueries.length > 0) {
       result.status = 'warning';
       result.details.push('Long-running queries detected:');
-      slowQueries.forEach(q => {
+      for (const q of slowQueries) {
         result.details.push(`Duration: ${q.duration}s - Query: ${q.query}`);
-      });
+      }
       result.recommendations.push(
         'Review and optimize slow queries',
         'Consider adding appropriate indexes',
@@ -163,11 +208,11 @@ async function debugPerformance(db: DatabaseConnection): Promise<DebugResult> {
 
     if (unusedIndexes.length > 0) {
       result.details.push('Unused indexes found:');
-      unusedIndexes.forEach(idx => {
+      for (const idx of unusedIndexes) {
         result.details.push(
           `${idx.schemaname}.${idx.tablename} - ${idx.indexname}`
         );
-      });
+      }
       result.recommendations.push(
         'Consider removing unused indexes',
         'Review index strategy'
@@ -218,12 +263,12 @@ async function debugLocks(db: DatabaseConnection): Promise<DebugResult> {
     if (locks.length > 0) {
       result.status = 'warning';
       result.details.push('Lock conflicts detected:');
-      locks.forEach(lock => {
+      for (const lock of locks) {
         result.details.push(
           `Process ${lock.blocked_pid} (${lock.blocked_user}) blocked by process ${lock.blocking_pid} (${lock.blocking_user})`
         );
         result.details.push(`Blocked query: ${lock.blocked_statement}`);
-      });
+      }
       result.recommendations.push(
         'Consider killing blocking queries if appropriate',
         'Review transaction management in application code',
@@ -272,23 +317,27 @@ async function debugReplication(db: DatabaseConnection): Promise<DebugResult> {
       return result;
     }
 
-    replicationStatus.forEach(rep => {
-      result.details.push(`Replica ${rep.client_addr}:`);
-      result.details.push(`State: ${rep.state}`);
-      result.details.push(`Write Lag: ${rep.write_lag || '0s'}`);
-      result.details.push(`Flush Lag: ${rep.flush_lag || '0s'}`);
-      result.details.push(`Replay Lag: ${rep.replay_lag || '0s'}`);
+    result.status = 'ok'; // Default to ok, specific checks might change it
+    result.details.push('Replication status:');
+    for (const status of replicationStatus) {
+      result.details.push(
+        `Replica: ${status.client_addr}, State: ${status.state}, Sent LSN: ${status.sent_lsn}, Replay LSN: ${status.replay_lsn}`
+      );
 
-      if (rep.replay_lag && parseFloat(rep.replay_lag) > 300) {
+      const writeLagSeconds = status.write_lag ? Number.parseFloat(status.write_lag.split(' ')[0]) : 0;
+      const flushLagSeconds = status.flush_lag ? Number.parseFloat(status.flush_lag.split(' ')[0]) : 0;
+      const replayLagSeconds = status.replay_lag ? Number.parseFloat(status.replay_lag.split(' ')[0]) : 0;
+
+      if (writeLagSeconds > 60 || flushLagSeconds > 60 || replayLagSeconds > 60) {
         result.status = 'warning';
         result.recommendations.push(
-          `High replication lag (${rep.replay_lag}) for ${rep.client_addr}`,
+          `High replication lag (${status.replay_lag}) for ${status.client_addr}`,
           'Check network bandwidth between nodes',
           'Review WAL settings',
           'Monitor system resources on replica'
         );
       }
-    });
+    }
 
   } catch (error: unknown) {
     result.status = 'error';

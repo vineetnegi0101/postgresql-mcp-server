@@ -3,3 +3,4 @@ build/
 *.log
 .env*
 .cursor/mcp.json
+REFACTOR_PROGRESS.md

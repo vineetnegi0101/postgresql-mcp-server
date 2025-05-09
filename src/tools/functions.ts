@@ -1,4 +1,6 @@
 import { DatabaseConnection } from '../utils/connection.js';
+import type { PostgresTool, ToolOutput, GetConnectionStringFn } from '../types/tool.js';
+import { z } from 'zod';
 
 interface FunctionResult {
   success: boolean;
@@ -19,7 +21,7 @@ interface FunctionInfo {
 /**
  * Get information about database functions
  */
-export async function getFunctions(
+async function _getFunctions(
   connectionString: string,
   functionName?: string,
   schema = 'public'
@@ -49,7 +51,7 @@ export async function getFunctions(
       WHERE n.nspname = $1
     `;
     
-    const params = [schema];
+    const params: (string | undefined)[] = [schema];
     
     if (functionName) {
       query += ' AND p.proname = $2';
@@ -81,7 +83,7 @@ export async function getFunctions(
 /**
  * Create or replace a database function
  */
-export async function createFunction(
+async function _createFunction(
   connectionString: string,
   functionName: string,
   parameters: string,
@@ -146,7 +148,7 @@ export async function createFunction(
 /**
  * Drop a database function
  */
-export async function dropFunction(
+async function _dropFunction(
   connectionString: string,
   functionName: string,
   parameters?: string,
@@ -202,7 +204,7 @@ export async function dropFunction(
 /**
  * Enable Row-Level Security (RLS) on a table
  */
-export async function enableRLS(
+async function _enableRLS(
   connectionString: string,
   tableName: string,
   schema = 'public'
@@ -236,7 +238,7 @@ export async function enableRLS(
 /**
  * Disable Row-Level Security (RLS) on a table
  */
-export async function disableRLS(
+async function _disableRLS(
   connectionString: string,
   tableName: string,
   schema = 'public'
@@ -270,7 +272,7 @@ export async function disableRLS(
 /**
  * Create a Row-Level Security policy
  */
-export async function createRLSPolicy(
+async function _createRLSPolicy(
   connectionString: string,
   tableName: string,
   policyName: string,
@@ -338,7 +340,7 @@ export async function createRLSPolicy(
 /**
  * Drop a Row-Level Security policy
  */
-export async function dropRLSPolicy(
+async function _dropRLSPolicy(
   connectionString: string,
   tableName: string,
   policyName: string,
@@ -380,7 +382,7 @@ export async function dropRLSPolicy(
 /**
  * Edit an existing Row-Level Security policy
  */
-export async function editRLSPolicy(
+async function _editRLSPolicy(
   connectionString: string,
   tableName: string,
   policyName: string,
@@ -467,7 +469,7 @@ export async function editRLSPolicy(
 /**
  * Get Row-Level Security policies for a table
  */
-export async function getRLSPolicies(
+async function _getRLSPolicies(
   connectionString: string,
   tableName?: string,
   schema = 'public'
@@ -490,7 +492,7 @@ export async function getRLSPolicies(
       WHERE schemaname = $1
     `;
     
-    const params = [schema];
+    const params: (string | undefined)[] = [schema];
     
     if (tableName) {
       query += ' AND tablename = $2';
@@ -517,4 +519,248 @@ export async function getRLSPolicies(
   } finally {
     await db.disconnect();
   }
-} 
+}
+
+// --- Tool Definitions ---
+
+export const getFunctionsTool: PostgresTool = {
+  name: 'pg_get_functions',
+  description: 'Get information about PostgreSQL functions',
+  inputSchema: z.object({
+    connectionString: z.string().optional().describe('PostgreSQL connection string (optional)'),
+    functionName: z.string().optional().describe('Optional function name to filter by'),
+    schema: z.string().optional().describe('Schema name (defaults to public)') // Assuming 'public' default is handled in execute or not strictly enforced by schema
+  }),
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  execute: async (args: any, getConnectionStringVal: GetConnectionStringFn): Promise<ToolOutput> => {
+    const { connectionString: connStringArg, functionName, schema } = args as {
+      connectionString?: string;
+      functionName?: string;
+      schema?: string;
+    };
+    const resolvedConnString = getConnectionStringVal(connStringArg);
+    const result = await _getFunctions(resolvedConnString, functionName, schema);
+    if (result.success) {
+      return { content: [{ type: 'text', text: JSON.stringify(result.details, null, 2) || result.message }] };
+    }
+    return { content: [{ type: 'text', text: result.message }], isError: true };
+  },
+};
+
+export const createFunctionTool: PostgresTool = {
+  name: 'pg_create_function',
+  description: 'Create or replace a PostgreSQL function',
+  inputSchema: z.object({
+    connectionString: z.string().optional().describe('PostgreSQL connection string (optional)'),
+    functionName: z.string().describe('Name of the function to create'),
+    parameters: z.string().describe('Function parameters (e.g., "id integer, name text")'),
+    returnType: z.string().describe('Return type of the function'),
+    functionBody: z.string().describe('Function body code'),
+    language: z.enum(['sql', 'plpgsql', 'plpython3u']).describe('Function language'),
+    volatility: z.enum(['VOLATILE', 'STABLE', 'IMMUTABLE']).describe('Function volatility'),
+    schema: z.string().describe('Schema name (defaults to public)'),
+    security: z.enum(['INVOKER', 'DEFINER']).describe('Function security context'),
+    replace: z.boolean().describe('Whether to replace the function if it exists')
+  }),
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  execute: async (args: any, getConnectionStringVal: GetConnectionStringFn): Promise<ToolOutput> => {
+    const { 
+        connectionString: connStringArg, 
+        functionName, 
+        parameters, 
+        returnType, 
+        functionBody, 
+        language, 
+        volatility, 
+        schema, 
+        security, 
+        replace 
+    } = args as {
+      connectionString?: string;
+      functionName: string;
+      parameters: string;
+      returnType: string;
+      functionBody: string;
+      language?: 'sql' | 'plpgsql' | 'plpython3u';
+      volatility?: 'VOLATILE' | 'STABLE' | 'IMMUTABLE';
+      schema?: string;
+      security?: 'INVOKER' | 'DEFINER';
+      replace?: boolean;
+    };
+    const resolvedConnString = getConnectionStringVal(connStringArg);
+    const result = await _createFunction(resolvedConnString, functionName, parameters, returnType, functionBody, { language, volatility, schema, security, replace });
+    if (result.success) {
+      return { content: [{ type: 'text', text: result.message + (result.details ? ` Details: ${JSON.stringify(result.details)}` : '') }] };
+    }
+    return { content: [{ type: 'text', text: result.message }], isError: true };
+  },
+};
+
+export const dropFunctionTool: PostgresTool = {
+  name: 'pg_drop_function',
+  description: 'Drop a PostgreSQL function',
+  inputSchema: z.object({
+    connectionString: z.string().optional().describe('PostgreSQL connection string (optional)'),
+    functionName: z.string().describe('Name of the function to drop'),
+    parameters: z.string().describe('Function parameters signature (required for overloaded functions)'),
+    schema: z.string().describe('Schema name (defaults to public)'),
+    ifExists: z.boolean().describe('Whether to include IF EXISTS clause'),
+    cascade: z.boolean().describe('Whether to include CASCADE clause')
+  }),
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  execute: async (args: any, getConnectionStringVal: GetConnectionStringFn): Promise<ToolOutput> => {
+    const { 
+        connectionString: connStringArg, 
+        functionName, 
+        parameters, 
+        schema, 
+        ifExists, 
+        cascade 
+    } = args as {
+        connectionString?: string;
+        functionName: string;
+        parameters?: string;
+        schema?: string;
+        ifExists?: boolean;
+        cascade?: boolean;
+    };
+    const resolvedConnString = getConnectionStringVal(connStringArg);
+    const result = await _dropFunction(resolvedConnString, functionName, parameters, { schema, ifExists, cascade });
+    if (result.success) {
+      return { content: [{ type: 'text', text: result.message + (result.details ? ` Details: ${JSON.stringify(result.details)}` : '') }] };
+    }
+    return { content: [{ type: 'text', text: result.message }], isError: true };
+  },
+};
+
+export const enableRLSTool: PostgresTool = {
+  name: 'pg_enable_rls',
+  description: 'Enable Row-Level Security on a table',
+  inputSchema: z.object({
+    connectionString: z.string().optional().describe('PostgreSQL connection string (optional)'),
+    tableName: z.string().describe('Name of the table to enable RLS on'),
+    schema: z.string().describe('Schema name (defaults to public)')
+  }),
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  execute: async (args: any, getConnectionStringVal: GetConnectionStringFn): Promise<ToolOutput> => {
+    const { connectionString: connStringArg, tableName, schema } = args;
+    const resolvedConnString = getConnectionStringVal(connStringArg);
+    const result = await _enableRLS(resolvedConnString, tableName, schema);
+    if (result.success) {
+      return { content: [{ type: 'text', text: result.message + (result.details ? ` Details: ${JSON.stringify(result.details)}` : '') }] };
+    }
+    return { content: [{ type: 'text', text: result.message }], isError: true };
+  }
+};
+
+export const disableRLSTool: PostgresTool = {
+  name: 'pg_disable_rls',
+  description: 'Disable Row-Level Security on a table',
+  inputSchema: z.object({
+    connectionString: z.string().optional().describe('PostgreSQL connection string (optional)'),
+    tableName: z.string().describe('Name of the table to disable RLS on'),
+    schema: z.string().describe('Schema name (defaults to public)')
+  }),
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  execute: async (args: any, getConnectionStringVal: GetConnectionStringFn): Promise<ToolOutput> => {
+    const { connectionString: connStringArg, tableName, schema } = args;
+    const resolvedConnString = getConnectionStringVal(connStringArg);
+    const result = await _disableRLS(resolvedConnString, tableName, schema);
+    if (result.success) {
+      return { content: [{ type: 'text', text: result.message + (result.details ? ` Details: ${JSON.stringify(result.details)}` : '') }] };
+    }
+    return { content: [{ type: 'text', text: result.message }], isError: true };
+  }
+};
+
+export const createRLSPolicyTool: PostgresTool = {
+  name: 'pg_create_rls_policy',
+  description: 'Create a Row-Level Security policy',
+  inputSchema: z.object({
+    connectionString: z.string().optional().describe('PostgreSQL connection string (optional)'),
+    tableName: z.string().describe('Name of the table to create policy on'),
+    policyName: z.string().describe('Name of the policy to create'),
+    using: z.string().describe('USING expression for the policy (e.g., "user_id = current_user_id()")'),
+    check: z.string().describe('WITH CHECK expression for the policy (if different from USING)'),
+    schema: z.string().describe('Schema name (defaults to public)'),
+    command: z.enum(['ALL', 'SELECT', 'INSERT', 'UPDATE', 'DELETE']).describe('Command the policy applies to'),
+    role: z.string().describe('Role the policy applies to'),
+    replace: z.boolean().describe('Whether to replace the policy if it exists')
+  }),
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  execute: async (args: any, getConnectionStringVal: GetConnectionStringFn): Promise<ToolOutput> => {
+    const { connectionString: connStringArg, tableName, policyName, using, check, schema, command, role, replace } = args;
+    const resolvedConnString = getConnectionStringVal(connStringArg);
+    const result = await _createRLSPolicy(resolvedConnString, tableName, policyName, using, check, { schema, command, role, replace });
+    if (result.success) {
+      return { content: [{ type: 'text', text: result.message + (result.details ? ` Details: ${JSON.stringify(result.details)}` : '') }] };
+    }
+    return { content: [{ type: 'text', text: result.message }], isError: true };
+  }
+};
+
+export const dropRLSPolicyTool: PostgresTool = {
+  name: 'pg_drop_rls_policy',
+  description: 'Drop a Row-Level Security policy',
+  inputSchema: z.object({
+    connectionString: z.string().optional().describe('PostgreSQL connection string (optional)'),
+    tableName: z.string().describe('Name of the table the policy is on'),
+    policyName: z.string().describe('Name of the policy to drop'),
+    schema: z.string().describe('Schema name (defaults to public)'),
+    ifExists: z.boolean().describe('Whether to include IF EXISTS clause')
+  }),
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  execute: async (args: any, getConnectionStringVal: GetConnectionStringFn): Promise<ToolOutput> => {
+    const { connectionString: connStringArg, tableName, policyName, schema, ifExists } = args;
+    const resolvedConnString = getConnectionStringVal(connStringArg);
+    const result = await _dropRLSPolicy(resolvedConnString, tableName, policyName, { schema, ifExists });
+    if (result.success) {
+      return { content: [{ type: 'text', text: result.message + (result.details ? ` Details: ${JSON.stringify(result.details)}` : '') }] };
+    }
+    return { content: [{ type: 'text', text: result.message }], isError: true };
+  }
+};
+
+export const editRLSPolicyTool: PostgresTool = {
+  name: 'pg_edit_rls_policy',
+  description: 'Edit an existing Row-Level Security policy',
+  inputSchema: z.object({
+    connectionString: z.string().optional().describe('PostgreSQL connection string (optional)'),
+    tableName: z.string().describe('Name of the table the policy is on'),
+    policyName: z.string().describe('Name of the policy to edit'),
+    schema: z.string().describe('Schema name (defaults to public)'),
+    roles: z.array(z.string()).describe('New list of roles the policy applies to (e.g., ["role1", "role2"]. Use PUBLIC or leave empty for all roles)'),
+    using: z.string().describe('New USING expression for the policy'),
+    check: z.string().describe('New WITH CHECK expression for the policy')
+  }),
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  execute: async (args: any, getConnectionStringVal: GetConnectionStringFn): Promise<ToolOutput> => {
+    const { connectionString: connStringArg, tableName, policyName, schema, roles, using, check } = args;
+    const resolvedConnString = getConnectionStringVal(connStringArg);
+    const result = await _editRLSPolicy(resolvedConnString, tableName, policyName, { schema, roles, using, check });
+    if (result.success) {
+      return { content: [{ type: 'text', text: result.message + (result.details ? ` Details: ${JSON.stringify(result.details)}` : '') }] };
+    }
+    return { content: [{ type: 'text', text: result.message }], isError: true };
+  }
+};
+
+export const getRLSPoliciesTool: PostgresTool = {
+  name: 'pg_get_rls_policies',
+  description: 'Get Row-Level Security policies',
+  inputSchema: z.object({
+    connectionString: z.string().optional().describe('PostgreSQL connection string (optional)'),
+    tableName: z.string().optional().describe('Optional table name to filter by'),
+    schema: z.string().optional().describe('Schema name (defaults to public)')
+  }),
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  execute: async (args: any, getConnectionStringVal: GetConnectionStringFn): Promise<ToolOutput> => {
+    const { connectionString: connStringArg, tableName, schema } = args;
+    const resolvedConnString = getConnectionStringVal(connStringArg);
+    const result = await _getRLSPolicies(resolvedConnString, tableName, schema);
+    if (result.success) {
+      return { content: [{ type: 'text', text: JSON.stringify(result.details, null, 2) || result.message }] };
+    }
+    return { content: [{ type: 'text', text: result.message }], isError: true };
+  }
+}; 

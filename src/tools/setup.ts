@@ -1,14 +1,29 @@
+import { z } from 'zod';
+import type { PostgresTool, GetConnectionStringFn, ToolOutput } from '../types/tool.js';
+// McpError and ErrorCode are not strictly needed here as this tool doesn't throw them,
+// but good practice to have available if future changes require error handling.
+// import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js'; 
+
 interface SetupInstructions {
   steps: string[];
   configuration: string[];
   postInstall: string[];
 }
 
-export function getSetupInstructions(
-  platform: 'linux' | 'macos' | 'windows',
-  version = 'latest',
-  useCase: 'development' | 'production' = 'development'
+const GetSetupInstructionsInputSchema = z.object({
+  platform: z.enum(['linux', 'macos', 'windows']),
+  version: z.string().optional().default('latest'),
+  useCase: z.enum(['development', 'production']).optional().default('development'),
+});
+
+type GetSetupInstructionsInput = z.infer<typeof GetSetupInstructionsInputSchema>;
+
+// The core logic of getSetupInstructions remains largely the same,
+// but it's no longer exported directly. It will be called by the execute method of the tool.
+function generateSetupInstructions(
+  input: GetSetupInstructionsInput
 ): SetupInstructions {
+  const { platform, version, useCase } = input;
   const instructions: SetupInstructions = {
     steps: [],
     configuration: [],
@@ -34,7 +49,7 @@ export function getSetupInstructions(
       instructions.steps = [
         '# Install PostgreSQL using Homebrew',
         'brew update',
-        `brew install postgresql${version === 'latest' ? '' : '@' + version}`,
+        `brew install postgresql${version === 'latest' ? '' : `@${version}`}`,
         '# Start PostgreSQL service',
         'brew services start postgresql'
       ];
@@ -103,3 +118,46 @@ export function getSetupInstructions(
 
   return instructions;
 }
+
+export const getSetupInstructionsTool: PostgresTool = {
+  name: 'pg_get_setup_instructions',
+  description: 'Get step-by-step PostgreSQL setup instructions',
+  inputSchema: GetSetupInstructionsInputSchema,
+  // This tool doesn't need a connection string, so getConnectionString is not used.
+  async execute(params: unknown, _getConnectionString: GetConnectionStringFn): Promise<ToolOutput> {
+    const validationResult = GetSetupInstructionsInputSchema.safeParse(params);
+    if (!validationResult.success) {
+      return {
+        content: [{ type: 'text', text: `Invalid input: ${validationResult.error.format()}` }],
+        isError: true,
+      };
+    }
+
+    try {
+      // Call the original logic, now as an internal function
+      const instructions = generateSetupInstructions(validationResult.data);
+      
+      // Format the SetupInstructions into ToolOutput
+      // For simplicity, joining each section into a single text block.
+      // Could also be multiple text blocks or a JSON block.
+      const outputText = 
+`Installation Steps:\n${instructions.steps.join('\n')}\n
+Configuration:\n${instructions.configuration.join('\n')}\n
+Post-Installation:\n${instructions.postInstall.join('\n')}`;
+
+      return {
+        content: [{ type: 'text', text: outputText }],
+      };
+    } catch (error) {
+      // Should not happen with current synchronous generateSetupInstructions,
+      // but good for robustness if it were async or could throw other errors.
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: 'text', text: `Error generating setup instructions: ${errorMessage}` }],
+        isError: true,
+      };
+    }
+  }
+}; 
+
+// The old getSetupInstructions is no longer exported.
