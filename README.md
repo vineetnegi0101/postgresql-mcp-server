@@ -5,12 +5,12 @@ A Model Context Protocol (MCP) server that provides comprehensive PostgreSQL dat
 
 ## Quick Start
 
-### Install via Smithery (Recommended)
+### Install via Smithery (Fast)
 ```bash
 npx -y @smithery/cli install @HenkDz/postgresql-mcp-server --client claude
 ```
 
-### Manual Installation
+### Manual Installation (Host Locally)
 ```bash
 git clone <repository-url>
 cd postgresql-mcp-server
