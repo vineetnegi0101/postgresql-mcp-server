@@ -3,13 +3,17 @@
 
 A Model Context Protocol (MCP) server that provides PostgreSQL database management capabilities. This server assists with analyzing existing PostgreSQL setups, providing implementation guidance, debugging database issues, managing schemas, migrating data, and monitoring database performance.
 
+**Key Update (Version 0.2.0):** This version introduces a significantly streamlined toolset. Many individual tools have been consolidated into powerful meta-tools, each supporting multiple operations. This reduces the total number of tools from 46 to 14, making it easier for AI clients like Cursor to discover and utilize the server's capabilities effectively.
+
 ## Version 0.2.0
 
 ## Features
 
-The server provides the following tools:
+The server provides a set of consolidated meta-tools and specialized tools:
 
-### 1. Database Analysis and Setup
+### 1. Specialized Tools: Database Analysis, Setup & Debugging
+
+These tools provide focused capabilities for specific, complex tasks.
 
 #### 1.1. Analyze Database (`analyze_database`)
 Analyzes PostgreSQL database configuration and performance metrics:
@@ -56,84 +60,40 @@ Debug common PostgreSQL issues:
 }
 ```
 
-### 2. Schema Management
+### 2. Consolidated Tool: Schema Management (`pg_manage_schema`)
+Manages PostgreSQL schema objects including tables and ENUM types. Supports multiple operations related to schema inspection and modification.
 
-#### 2.1. Get Schema Information (`get_schema_info`)
-Get detailed schema information for a database or specific table:
-- List of tables in a database
-- Column definitions
-- Constraints (primary keys, foreign keys, etc.)
-- Indexes
+- **Supported Operations**: `get_info`, `create_table`, `alter_table`, `get_enums`, `create_enum`
+- **Key Features**: 
+    - Get detailed schema information for databases or specific tables (columns, constraints, indexes).
+    - Create new tables with specified columns, types, and constraints.
+    - Alter existing tables by adding, modifying, or dropping columns.
+    - List existing ENUM types or create new ENUM types.
 
 ```typescript
-// Example usage
+// Example: Creating a new table using the 'create_table' operation
 {
-  "tableName": "users" // Optional: specific table to get info for
+  "operation": "create_table", // Required: e.g., "get_info", "create_table", "alter_table", "get_enums", "create_enum"
+  "tableName": "products", 
+  "columns": [
+    { "name": "id", "type": "SERIAL PRIMARY KEY" },
+    { "name": "name", "type": "VARCHAR(255) NOT NULL" },
+    { "name": "price", "type": "DECIMAL(10, 2)" },
+    { "name": "category_id", "type": "INTEGER" }
+  ],
+  "schema": "public" // Optional
+}
+
+// Example: Getting information about an ENUM using the 'get_enums' operation
+{
+  "operation": "get_enums",
+  "enumName": "order_status",
+  "schema": "public" // Optional
 }
 ```
 
-#### 2.2. Create Table (`create_table`)
-Create a new table with specified columns:
-- Define column names and types
-- Set nullable constraints
-- Set default values
-
-```typescript
-// Example usage
-{
-  "tableName": "users", // Required
-  "columns": [ // Required
-    { "name": "id", "type": "SERIAL", "nullable": false },
-    { "name": "username", "type": "VARCHAR(100)", "nullable": false },
-    { "name": "email", "type": "VARCHAR(255)", "nullable": false },
-    { "name": "created_at", "type": "TIMESTAMP", "default": "NOW()" }
-  ]
-}
-```
-
-#### 2.3. Alter Table (`alter_table`)
-Modify existing tables:
-- Add new columns
-- Modify column types or constraints
-- Drop columns
-
-```typescript
-// Example usage
-{
-  "tableName": "users", // Required
-  "operations": [ // Required
-    { "type": "add", "columnName": "last_login", "dataType": "TIMESTAMP" },
-    { "type": "alter", "columnName": "email", "nullable": false },
-    { "type": "drop", "columnName": "temporary_field" }
-  ]
-}
-```
-
-#### 2.4. Get Enums (`get_enums`)
-Get information about PostgreSQL ENUM types.
-
-```typescript
-// Example usage
-{
-  "schema": "public", // Optional
-  "enumName": "user_status" // Optional
-}
-```
-
-#### 2.5. Create Enum (`create_enum`)
-Create a new ENUM type in the database.
-
-```typescript
-// Example usage
-{
-  "enumName": "order_status", // Required
-  "values": ["pending", "processing", "shipped", "delivered"], // Required
-  "schema": "public", // Optional
-  "ifNotExists": true // Optional
-}
-```
-
-### 3. Data Migration
+### 3. Specialized Tools: Data Migration
+These tools handle specific data import, export, and copying tasks.
 
 #### 3.1. Export Table Data (`export_table_data`)
 Export table data to JSON or CSV format:
@@ -185,9 +145,7 @@ Copy data between two PostgreSQL databases:
 }
 ```
 
-### 4. Monitoring
-
-#### 4.1. Monitor Database (`monitor_database`)
+### 4. Specialized Tool: Database Monitoring (`monitor_database`)
 Real-time monitoring of PostgreSQL database:
 - Database metrics (connections, cache hit ratio, etc.)
 - Table metrics (size, row counts, dead tuples)
@@ -213,497 +171,226 @@ Real-time monitoring of PostgreSQL database:
 }
 ```
 
-### 5. Functions
+### 5. Consolidated Tool: Functions Management (`pg_manage_functions`)
+Manages PostgreSQL functions, allowing for their retrieval, creation, and deletion.
 
-#### 5.1. Get Functions (`get_functions`)
-Get information about PostgreSQL functions.
+- **Supported Operations**: `get`, `create`, `drop`
+- **Key Features**:
+    - Get information about specific functions or list all functions in a schema.
+    - Create new functions or replace existing ones with specified parameters, return type, body, and language.
+    - Drop existing functions, with an option for cascading.
 
 ```typescript
-// Example usage
+// Example: Creating a new SQL function using the 'create' operation
 {
-  "functionName": "calculate_total", // Optional
+  "operation": "create", // Required: "get" | "create" | "drop"
+  "functionName": "get_active_users_count",
+  "parameters": "", // E.g., "p_customer_id INTEGER, p_date_from DATE"
+  "returnType": "INTEGER",
+  "functionBody": "SELECT COUNT(*) FROM users WHERE status = 'active';",
+  "language": "sql", // Optional, defaults to "plpgsql"
+  "replace": true, // Optional, defaults to false
+  "schema": "public" // Optional
+}
+
+// Example: Getting information about a function using the 'get' operation
+{
+  "operation": "get",
+  "functionName": "calculate_total",
   "schema": "public" // Optional
 }
 ```
 
-#### 5.2. Create Function (`create_function`)
-Create or replace a PostgreSQL function.
+### 6. Consolidated Tool: Row-Level Security (RLS) Management (`pg_manage_rls`)
+Manages Row-Level Security (RLS) settings and policies for tables.
+
+- **Supported Operations**: `enable`, `disable`, `create_policy`, `edit_policy`, `drop_policy`, `get_policies`
+- **Key Features**:
+    - Enable or disable RLS for a specific table.
+    - Create new RLS policies with `USING` and `WITH CHECK` expressions for different commands (SELECT, INSERT, UPDATE, DELETE).
+    - Modify existing RLS policies.
+    - Drop RLS policies from a table.
+    - List all RLS policies for a table or schema.
 
 ```typescript
-// Example usage
+// Example: Creating a new RLS policy using the 'create_policy' operation
 {
-  "functionName": "get_user_count", // Required
-  "parameters": "", // Required (empty if no params)
-  "returnType": "integer", // Required
-  "functionBody": "SELECT count(*) FROM users;", // Required
-  "language": "sql", // Optional
-  "volatility": "STABLE", // Optional
-  "schema": "public", // Optional
-  "security": "INVOKER", // Optional
-  "replace": true // Optional
-}
-```
-
-#### 5.3. Drop Function (`drop_function`)
-Drop a PostgreSQL function.
-
-```typescript
-// Example usage
-{
-  "functionName": "old_function", // Required
-  "parameters": "integer", // Optional: required for overloaded functions
-  "schema": "public", // Optional
-  "ifExists": true, // Optional
-  "cascade": false // Optional
-}
-```
-
-### 6. Row-Level Security (RLS)
-
-#### 6.1. Enable RLS (`enable_rls`)
-Enable Row-Level Security on a table.
-
-```typescript
-// Example usage
-{
-  "tableName": "sensitive_data", // Required
-  "schema": "secure" // Optional
-}
-```
-
-#### 6.2. Disable RLS (`disable_rls`)
-Disable Row-Level Security on a table.
-
-```typescript
-// Example usage
-{
-  "tableName": "sensitive_data", // Required
-  "schema": "secure" // Optional
-}
-```
-
-#### 6.3. Create RLS Policy (`create_rls_policy`)
-Create a Row-Level Security policy.
-
-```typescript
-// Example usage
-{
-  "tableName": "documents", // Required
-  "policyName": "user_can_see_own_docs", // Required
-  "using": "owner_id = current_user_id()", // Required
-  "check": "owner_id = current_user_id()", // Optional
-  "schema": "public", // Optional
-  "command": "SELECT", // Optional
+  "operation": "create_policy", // Required: e.g., "enable", "create_policy", "get_policies"
+  "tableName": "documents",
+  "policyName": "user_can_see_own_documents",
+  "command": "SELECT", // Optional, defaults to "ALL"
+  "using": "owner_user_id = current_setting('app.current_user_id')::INTEGER",
   "role": "app_user", // Optional
-  "replace": false // Optional
-}
-```
-
-#### 6.4. Edit RLS Policy (`edit_rls_policy`)
-Edit an existing Row-Level Security policy.
-
-```typescript
-// Example usage
-{
-  "tableName": "documents", // Required
-  "policyName": "user_can_see_own_docs", // Required
-  "schema": "public", // Optional
-  "roles": ["app_user", "admin_user"], // Optional: New roles (empty or omit to keep existing/use default)
-  "using": "owner_id = current_user_id() OR is_admin(current_user_id())", // Optional: New USING expression
-  "check": "owner_id = current_user_id()" // Optional: New WITH CHECK expression
-}
-```
-
-#### 6.5. Drop RLS Policy (`drop_rls_policy`)
-Drop a Row-Level Security policy.
-
-```typescript
-// Example usage
-{
-  "tableName": "documents", // Required
-  "policyName": "old_policy", // Required
-  "schema": "public", // Optional
-  "ifExists": true // Optional
-}
-```
-
-#### 6.6. Get RLS Policies (`get_rls_policies`)
-Get Row-Level Security policies.
-
-```typescript
-// Example usage
-{
-  "tableName": "documents", // Optional
   "schema": "public" // Optional
 }
+
+// Example: Enabling RLS on a table using the 'enable' operation
+{
+  "operation": "enable",
+  "tableName": "sensitive_data",
+  "schema": "secure" // Optional
+}
 ```
 
-### 7. Triggers
+### 7. Consolidated Tool: User and Permissions Management (`pg_manage_users`)
+Manages PostgreSQL users (roles) and their permissions.
 
-#### 7.1. Get Triggers (`get_triggers`)
-Get information about PostgreSQL triggers.
+- **Supported Operations**: `create`, `drop`, `alter`, `grant`, `revoke`, `get_permissions`, `list`
+- **Key Features**:
+    - Create new users with various attributes (login, password, connection limit, etc.).
+    - Drop existing users, with an option for cascading to remove owned objects.
+    - Alter user attributes like password, connection limits, or superuser status.
+    - Grant or revoke specific permissions (SELECT, INSERT, UPDATE, DELETE, etc.) on database objects (tables, schemas, etc.) to users.
+    - List all users or get detailed permissions for a specific user on a target object.
 
 ```typescript
-// Example usage
+// Example: Creating a new user with login privileges using the 'create' operation
 {
-  "tableName": "audit_log", // Optional
+  "operation": "create", // Required: e.g., "create", "grant", "list"
+  "username": "new_app_user",
+  "password": "securePassword123!",
+  "login": true,
+  "connectionLimit": 10 // Optional
+}
+
+// Example: Granting SELECT permission on a table to a user using the 'grant' operation
+{
+  "operation": "grant",
+  "username": "readonly_user",
+  "permissions": ["SELECT"],
+  "target": "reports_table",
+  "targetType": "table",
+  "schema": "analytics" // Optional
+}
+```
+
+### 8. Consolidated Tool: Triggers Management (`pg_manage_triggers`)
+Manages database triggers, allowing for their retrieval, creation, deletion, and state modification.
+
+- **Supported Operations**: `get`, `create`, `drop`, `set_state`
+- **Key Features**:
+    - Get information about specific triggers or list all triggers on a table.
+    - Create new triggers with specified timing (BEFORE, AFTER, INSTEAD OF), events (INSERT, UPDATE, DELETE, TRUNCATE), and a function to execute.
+    - Drop existing triggers.
+    - Enable or disable specific triggers on a table.
+
+```typescript
+// Example: Creating a trigger that updates 'updated_at' timestamp using the 'create' operation
+{
+  "operation": "create", // Required: "get" | "create" | "drop" | "set_state"
+  "triggerName": "update_users_updated_at",
+  "tableName": "users",
+  "functionName": "update_updated_at_column", // Assumes this function exists
+  "timing": "BEFORE", // Optional, defaults to "AFTER"
+  "events": ["UPDATE"], // Optional, defaults to ["INSERT"]
+  "forEach": "ROW", // Optional, defaults to "ROW"
   "schema": "public" // Optional
 }
-```
 
-#### 7.2. Create Trigger (`create_trigger`)
-Create a PostgreSQL trigger.
-
-```typescript
-// Example usage
+// Example: Disabling a trigger using the 'set_state' operation
 {
-  "triggerName": "log_user_update", // Required
-  "tableName": "users", // Required
-  "functionName": "audit_user_change", // Required
-  "schema": "public", // Optional
-  "timing": "AFTER", // Optional
-  "events": ["UPDATE"], // Optional
-  "when": "OLD.email IS DISTINCT FROM NEW.email", // Optional
-  "forEach": "ROW", // Optional
-  "replace": false // Optional
+  "operation": "set_state",
+  "triggerName": "audit_log_trigger",
+  "tableName": "sensitive_actions",
+  "enable": false, // Required for "set_state"
+  "schema": "auditing" // Optional
 }
 ```
 
-#### 7.3. Drop Trigger (`drop_trigger`)
-Drop a PostgreSQL trigger.
+### 9. Consolidated Tool: Index Management (`pg_manage_indexes`)
+Manages database indexes, including their creation, retrieval, deletion, reindexing, and usage analysis.
+
+- **Supported Operations**: `get`, `create`, `drop`, `reindex`, `analyze_usage`
+- **Key Features**:
+    - Get information about indexes, including their definition, size, and usage statistics.
+    - Create new indexes (B-tree, Hash, GiST, etc.) on specified table columns, with options for unique, concurrent, and partial indexes.
+    - Drop existing indexes, with an option for concurrent removal.
+    - Reindex tables, schemas, or entire databases to rebuild indexes.
+    - Analyze index usage to find unused, duplicate, or inefficient indexes.
 
 ```typescript
-// Example usage
+// Example: Creating a B-tree index on the email column of the users table using the 'create' operation
 {
-  "triggerName": "old_trigger", // Required
-  "tableName": "users", // Required
-  "schema": "public", // Optional
-  "ifExists": true, // Optional
-  "cascade": false // Optional
-}
-```
-
-#### 7.4. Set Trigger State (`set_trigger_state`)
-Enable or disable a PostgreSQL trigger.
-
-```typescript
-// Example usage
-{
-  "triggerName": "log_user_update", // Required
-  "tableName": "users", // Required
-  "enable": false, // Required: true to enable, false to disable
+  "operation": "create", // Required: "get" | "create" | "drop" | "reindex" | "analyze_usage"
+  "indexName": "idx_users_email",
+  "tableName": "users",
+  "columns": ["email"],
+  "method": "btree", // Optional, defaults to "btree"
+  "unique": true, // Optional, defaults to false
+  "concurrent": false, // Optional, defaults to false
   "schema": "public" // Optional
 }
-```
 
-### 8. Index Management
-
-#### 8.1. Get Indexes (`get_indexes`)
-List indexes with size and usage statistics.
-
-```typescript
-// Example usage
+// Example: Analyzing index usage in a schema using the 'analyze_usage' operation
 {
-  "schema": "public", // Optional
-  "tableName": "users", // Optional
-  "includeStats": true // Optional: include usage statistics
-}
-```
-
-#### 8.2. Create Index (`create_index`)
-Create a new index on a table.
-
-```typescript
-// Example usage
-{
-  "indexName": "idx_user_email", // Required
-  "tableName": "users", // Required
-  "columns": ["email"], // Required
-  "schema": "public", // Optional
-  "unique": true, // Optional
-  "concurrent": false, // Optional
-  "method": "btree", // Optional: "btree" | "hash" | "gist" | "spgist" | "gin" | "brin"
-  "where": "active = true", // Optional: partial index condition
-  "ifNotExists": true // Optional
-}
-```
-
-#### 8.3. Drop Index (`drop_index`)
-Drop an existing index.
-
-```typescript
-// Example usage
-{
-  "indexName": "idx_user_email", // Required
-  "schema": "public", // Optional
-  "concurrent": false, // Optional
-  "ifExists": true, // Optional
-  "cascade": false // Optional
-}
-```
-
-#### 8.4. Reindex (`reindex`)
-Rebuild indexes to improve performance and reclaim space.
-
-```typescript
-// Example usage
-{
-  "target": "users", // Required: index/table/schema/database name
-  "type": "table", // Required: "index" | "table" | "schema" | "database"
-  "schema": "public", // Optional
-  "concurrent": false // Optional: PostgreSQL 12+ feature
-}
-```
-
-#### 8.5. Analyze Index Usage (`analyze_index_usage`)
-Find unused, duplicate, and low-usage indexes to optimize database performance.
-
-```typescript
-// Example usage
-{
-  "schema": "public", // Optional
-  "tableName": "users", // Optional
-  "minSizeBytes": 1024, // Optional: minimum index size to include
+  "operation": "analyze_usage",
+  "schema": "public", // Optional, defaults to "public"
   "showUnused": true, // Optional
   "showDuplicates": true // Optional
 }
 ```
 
-### 9. Query Performance & Analysis
+### 10. Consolidated Tool: Query Performance & Analysis (`pg_manage_query`)
+Provides tools for analyzing query performance, understanding execution plans, and managing `pg_stat_statements` statistics.
 
-#### 9.1. EXPLAIN Query (`explain_query`)
-EXPLAIN/EXPLAIN ANALYZE for queries to understand execution plans.
+- **Supported Operations**: `explain`, `get_slow_queries`, `get_stats`, `reset_stats`
+- **Key Features**:
+    - Generate `EXPLAIN` or `EXPLAIN ANALYZE` plans for queries in various formats (JSON, text, XML, YAML).
+    - Identify slow-running queries using the `pg_stat_statements` extension, with options to filter by duration and sort results.
+    - Retrieve query execution statistics from `pg_stat_statements`, including call counts, timings, and cache hit ratios.
+    - Reset `pg_stat_statements` statistics for all queries or a specific query ID.
 
 ```typescript
-// Example usage
+// Example: Explaining a query with EXPLAIN ANALYZE using the 'explain' operation
 {
-  "query": "SELECT * FROM users WHERE email = 'test@example.com'", // Required
-  "analyze": false, // Optional: actually execute the query
-  "buffers": false, // Optional: include buffer usage
-  "verbose": false, // Optional: verbose output
-  "costs": true, // Optional: include cost estimates
-  "format": "json" // Optional: "text" | "json" | "xml" | "yaml"
+  "operation": "explain", // Required: "explain" | "get_slow_queries" | "get_stats" | "reset_stats"
+  "query": "SELECT * FROM orders WHERE order_date > '2023-01-01' AND status = 'shipped';",
+  "analyze": true, // Optional, defaults to false
+  "buffers": true, // Optional, defaults to false
+  "format": "json" // Optional, defaults to "json"
+}
+
+// Example: Getting top 5 slowest queries using the 'get_slow_queries' operation
+{
+  "operation": "get_slow_queries",
+  "limit": 5, // Optional, defaults to 10
+  "orderBy": "mean_time", // Optional, defaults to "mean_time"
+  "minDuration": 100 // Optional: minimum average duration in milliseconds
 }
 ```
 
-#### 9.2. Get Slow Queries (`get_slow_queries`)
-Find slow running queries using pg_stat_statements.
+### 11. Consolidated Tool: Constraint Management (`pg_manage_constraints`)
+Manages database constraints such as Primary Keys, Foreign Keys, Unique constraints, and Check constraints.
+
+- **Supported Operations**: `get`, `create_fk`, `drop_fk`, `create`, `drop`
+- **Key Features**:
+    - List existing constraints on a table or schema, filterable by constraint type.
+    - Create new Foreign Key constraints between tables.
+    - Drop existing Foreign Key constraints.
+    - Create new Primary Key, Unique, or Check constraints on tables.
+    - Drop existing Primary Key, Unique, or Check constraints.
 
 ```typescript
-// Example usage
+// Example: Creating a foreign key constraint using the 'create_fk' operation
 {
-  "limit": 10, // Optional: number of queries to return
-  "minDuration": 1000, // Optional: minimum duration in milliseconds
-  "orderBy": "mean_time", // Optional: "mean_time" | "total_time" | "calls"
-  "includeNormalized": true // Optional
-}
-```
-
-#### 9.3. Get Query Stats (`get_query_stats`)
-Query statistics from pg_stat_statements with cache hit ratios.
-
-```typescript
-// Example usage
-{
-  "limit": 20, // Optional
-  "orderBy": "total_time", // Optional: "calls" | "total_time" | "mean_time" | "cache_hit_ratio"
-  "minCalls": 10, // Optional: minimum number of calls
-  "queryPattern": "SELECT" // Optional: filter by query pattern
-}
-```
-
-#### 9.4. Reset Query Stats (`reset_query_stats`)
-Reset pg_stat_statements statistics.
-
-```typescript
-// Example usage
-{
-  "queryId": "12345" // Optional: specific query ID to reset, omit to reset all
-}
-```
-
-### 10. User & Permission Management
-
-#### 10.1. Create User (`create_user`)
-Create a new PostgreSQL user/role.
-
-```typescript
-// Example usage
-{
-  "username": "app_user", // Required
-  "password": "secure_password", // Optional
-  "superuser": false, // Optional
-  "createdb": false, // Optional
-  "createrole": false, // Optional
-  "login": true, // Optional
-  "replication": false, // Optional
-  "connectionLimit": 10, // Optional
-  "validUntil": "2024-12-31", // Optional: YYYY-MM-DD
-  "inherit": true // Optional
-}
-```
-
-#### 10.2. Drop User (`drop_user`)
-Drop a PostgreSQL user/role.
-
-```typescript
-// Example usage
-{
-  "username": "app_user", // Required
-  "ifExists": true, // Optional
-  "cascade": false // Optional: drop owned objects
-}
-```
-
-#### 10.3. Alter User (`alter_user`)
-Alter an existing PostgreSQL user/role.
-
-```typescript
-// Example usage
-{
-  "username": "app_user", // Required
-  "password": "new_password", // Optional
-  "superuser": false, // Optional
-  "createdb": true, // Optional
-  "login": true, // Optional
-  "connectionLimit": 20 // Optional
-}
-```
-
-#### 10.4. Grant Permissions (`grant_permissions`)
-Grant permissions to a user/role.
-
-```typescript
-// Example usage
-{
-  "username": "app_user", // Required
-  "permissions": ["SELECT", "INSERT", "UPDATE"], // Required
-  "target": "users", // Required: object name
-  "targetType": "table", // Required: "table" | "schema" | "database" | "sequence" | "function"
-  "schema": "public", // Optional
-  "withGrantOption": false // Optional
-}
-```
-
-#### 10.5. Revoke Permissions (`revoke_permissions`)
-Revoke permissions from a user/role.
-
-```typescript
-// Example usage
-{
-  "username": "app_user", // Required
-  "permissions": ["DELETE"], // Required
-  "target": "users", // Required
-  "targetType": "table", // Required
-  "schema": "public", // Optional
-  "cascade": false // Optional
-}
-```
-
-#### 10.6. Get User Permissions (`get_user_permissions`)
-Get permissions for a user/role or all users.
-
-```typescript
-// Example usage
-{
-  "username": "app_user", // Optional: omit to show all users
-  "schema": "public", // Optional
-  "targetType": "table" // Optional
-}
-```
-
-#### 10.7. List Users (`list_users`)
-List all users/roles in the database.
-
-```typescript
-// Example usage
-{
-  "includeSystemRoles": false // Optional: include system roles like pg_*
-}
-```
-
-### 11. Constraint Management
-
-#### 11.1. Get Constraints (`get_constraints`)
-List all constraints (primary keys, foreign keys, unique, check).
-
-```typescript
-// Example usage
-{
-  "schema": "public", // Optional
-  "tableName": "users", // Optional
-  "constraintType": "FOREIGN KEY" // Optional: "PRIMARY KEY" | "FOREIGN KEY" | "UNIQUE" | "CHECK"
-}
-```
-
-#### 11.2. Create Foreign Key (`create_foreign_key`)
-Create a foreign key constraint.
-
-```typescript
-// Example usage
-{
-  "constraintName": "fk_user_profile", // Required
-  "tableName": "profiles", // Required
-  "columnNames": ["user_id"], // Required
-  "referencedTable": "users", // Required
-  "referencedColumns": ["id"], // Required
-  "schema": "public", // Optional
-  "onUpdate": "CASCADE", // Optional: "NO ACTION" | "RESTRICT" | "CASCADE" | "SET NULL" | "SET DEFAULT"
-  "onDelete": "CASCADE", // Optional
-  "deferrable": false, // Optional
-  "initiallyDeferred": false // Optional
-}
-```
-
-#### 11.3. Drop Foreign Key (`drop_foreign_key`)
-Drop a foreign key constraint.
-
-```typescript
-// Example usage
-{
-  "constraintName": "fk_user_profile", // Required
-  "tableName": "profiles", // Required
-  "schema": "public", // Optional
-  "ifExists": true, // Optional
-  "cascade": false // Optional
-}
-```
-
-#### 11.4. Create Constraint (`create_constraint`)
-Create a constraint (unique, check, or primary key).
-
-```typescript
-// Example usage for unique constraint
-{
-  "constraintName": "uk_user_email", // Required
-  "tableName": "users", // Required
-  "constraintType": "unique", // Required: "unique" | "check" | "primary_key"
-  "columnNames": ["email"], // Required for unique/primary_key
-  "schema": "public", // Optional
-  "deferrable": false // Optional
-}
-
-// Example for check constraint
-{
-  "constraintName": "ck_user_age", // Required
-  "tableName": "users", // Required
-  "constraintType": "check", // Required
-  "checkExpression": "age >= 18", // Required for check constraints
+  "operation": "create_fk", // Required: e.g., "get", "create_fk", "drop"
+  "constraintName": "fk_orders_customer_id",
+  "tableName": "orders",
+  "columnNames": ["customer_id"],
+  "referencedTable": "customers",
+  "referencedColumns": ["id"],
+  "onDelete": "SET NULL", // Optional
   "schema": "public" // Optional
 }
-```
 
-#### 11.5. Drop Constraint (`drop_constraint`)
-Drop a constraint.
-
-```typescript
-// Example usage
+// Example: Adding a UNIQUE constraint using the 'create' operation
 {
-  "constraintName": "uk_user_email", // Required
-  "tableName": "users", // Required
-  "schema": "public", // Optional
-  "ifExists": true, // Optional
-  "cascade": false // Optional
+  "operation": "create",
+  "constraintName": "uk_products_sku",
+  "tableName": "products",
+  "constraintTypeCreate": "unique", // Required for 'create' op: "unique" | "check" | "primary_key"
+  "columnNames": ["sku"], // Required for unique/primary_key
+  "schema": "public" // Optional
 }
 ```
 
