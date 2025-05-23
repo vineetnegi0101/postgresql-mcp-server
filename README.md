@@ -396,6 +396,317 @@ Enable or disable a PostgreSQL trigger.
 }
 ```
 
+### 8. Index Management
+
+#### 8.1. Get Indexes (`get_indexes`)
+List indexes with size and usage statistics.
+
+```typescript
+// Example usage
+{
+  "schema": "public", // Optional
+  "tableName": "users", // Optional
+  "includeStats": true // Optional: include usage statistics
+}
+```
+
+#### 8.2. Create Index (`create_index`)
+Create a new index on a table.
+
+```typescript
+// Example usage
+{
+  "indexName": "idx_user_email", // Required
+  "tableName": "users", // Required
+  "columns": ["email"], // Required
+  "schema": "public", // Optional
+  "unique": true, // Optional
+  "concurrent": false, // Optional
+  "method": "btree", // Optional: "btree" | "hash" | "gist" | "spgist" | "gin" | "brin"
+  "where": "active = true", // Optional: partial index condition
+  "ifNotExists": true // Optional
+}
+```
+
+#### 8.3. Drop Index (`drop_index`)
+Drop an existing index.
+
+```typescript
+// Example usage
+{
+  "indexName": "idx_user_email", // Required
+  "schema": "public", // Optional
+  "concurrent": false, // Optional
+  "ifExists": true, // Optional
+  "cascade": false // Optional
+}
+```
+
+#### 8.4. Reindex (`reindex`)
+Rebuild indexes to improve performance and reclaim space.
+
+```typescript
+// Example usage
+{
+  "target": "users", // Required: index/table/schema/database name
+  "type": "table", // Required: "index" | "table" | "schema" | "database"
+  "schema": "public", // Optional
+  "concurrent": false // Optional: PostgreSQL 12+ feature
+}
+```
+
+#### 8.5. Analyze Index Usage (`analyze_index_usage`)
+Find unused, duplicate, and low-usage indexes to optimize database performance.
+
+```typescript
+// Example usage
+{
+  "schema": "public", // Optional
+  "tableName": "users", // Optional
+  "minSizeBytes": 1024, // Optional: minimum index size to include
+  "showUnused": true, // Optional
+  "showDuplicates": true // Optional
+}
+```
+
+### 9. Query Performance & Analysis
+
+#### 9.1. EXPLAIN Query (`explain_query`)
+EXPLAIN/EXPLAIN ANALYZE for queries to understand execution plans.
+
+```typescript
+// Example usage
+{
+  "query": "SELECT * FROM users WHERE email = 'test@example.com'", // Required
+  "analyze": false, // Optional: actually execute the query
+  "buffers": false, // Optional: include buffer usage
+  "verbose": false, // Optional: verbose output
+  "costs": true, // Optional: include cost estimates
+  "format": "json" // Optional: "text" | "json" | "xml" | "yaml"
+}
+```
+
+#### 9.2. Get Slow Queries (`get_slow_queries`)
+Find slow running queries using pg_stat_statements.
+
+```typescript
+// Example usage
+{
+  "limit": 10, // Optional: number of queries to return
+  "minDuration": 1000, // Optional: minimum duration in milliseconds
+  "orderBy": "mean_time", // Optional: "mean_time" | "total_time" | "calls"
+  "includeNormalized": true // Optional
+}
+```
+
+#### 9.3. Get Query Stats (`get_query_stats`)
+Query statistics from pg_stat_statements with cache hit ratios.
+
+```typescript
+// Example usage
+{
+  "limit": 20, // Optional
+  "orderBy": "total_time", // Optional: "calls" | "total_time" | "mean_time" | "cache_hit_ratio"
+  "minCalls": 10, // Optional: minimum number of calls
+  "queryPattern": "SELECT" // Optional: filter by query pattern
+}
+```
+
+#### 9.4. Reset Query Stats (`reset_query_stats`)
+Reset pg_stat_statements statistics.
+
+```typescript
+// Example usage
+{
+  "queryId": "12345" // Optional: specific query ID to reset, omit to reset all
+}
+```
+
+### 10. User & Permission Management
+
+#### 10.1. Create User (`create_user`)
+Create a new PostgreSQL user/role.
+
+```typescript
+// Example usage
+{
+  "username": "app_user", // Required
+  "password": "secure_password", // Optional
+  "superuser": false, // Optional
+  "createdb": false, // Optional
+  "createrole": false, // Optional
+  "login": true, // Optional
+  "replication": false, // Optional
+  "connectionLimit": 10, // Optional
+  "validUntil": "2024-12-31", // Optional: YYYY-MM-DD
+  "inherit": true // Optional
+}
+```
+
+#### 10.2. Drop User (`drop_user`)
+Drop a PostgreSQL user/role.
+
+```typescript
+// Example usage
+{
+  "username": "app_user", // Required
+  "ifExists": true, // Optional
+  "cascade": false // Optional: drop owned objects
+}
+```
+
+#### 10.3. Alter User (`alter_user`)
+Alter an existing PostgreSQL user/role.
+
+```typescript
+// Example usage
+{
+  "username": "app_user", // Required
+  "password": "new_password", // Optional
+  "superuser": false, // Optional
+  "createdb": true, // Optional
+  "login": true, // Optional
+  "connectionLimit": 20 // Optional
+}
+```
+
+#### 10.4. Grant Permissions (`grant_permissions`)
+Grant permissions to a user/role.
+
+```typescript
+// Example usage
+{
+  "username": "app_user", // Required
+  "permissions": ["SELECT", "INSERT", "UPDATE"], // Required
+  "target": "users", // Required: object name
+  "targetType": "table", // Required: "table" | "schema" | "database" | "sequence" | "function"
+  "schema": "public", // Optional
+  "withGrantOption": false // Optional
+}
+```
+
+#### 10.5. Revoke Permissions (`revoke_permissions`)
+Revoke permissions from a user/role.
+
+```typescript
+// Example usage
+{
+  "username": "app_user", // Required
+  "permissions": ["DELETE"], // Required
+  "target": "users", // Required
+  "targetType": "table", // Required
+  "schema": "public", // Optional
+  "cascade": false // Optional
+}
+```
+
+#### 10.6. Get User Permissions (`get_user_permissions`)
+Get permissions for a user/role or all users.
+
+```typescript
+// Example usage
+{
+  "username": "app_user", // Optional: omit to show all users
+  "schema": "public", // Optional
+  "targetType": "table" // Optional
+}
+```
+
+#### 10.7. List Users (`list_users`)
+List all users/roles in the database.
+
+```typescript
+// Example usage
+{
+  "includeSystemRoles": false // Optional: include system roles like pg_*
+}
+```
+
+### 11. Constraint Management
+
+#### 11.1. Get Constraints (`get_constraints`)
+List all constraints (primary keys, foreign keys, unique, check).
+
+```typescript
+// Example usage
+{
+  "schema": "public", // Optional
+  "tableName": "users", // Optional
+  "constraintType": "FOREIGN KEY" // Optional: "PRIMARY KEY" | "FOREIGN KEY" | "UNIQUE" | "CHECK"
+}
+```
+
+#### 11.2. Create Foreign Key (`create_foreign_key`)
+Create a foreign key constraint.
+
+```typescript
+// Example usage
+{
+  "constraintName": "fk_user_profile", // Required
+  "tableName": "profiles", // Required
+  "columnNames": ["user_id"], // Required
+  "referencedTable": "users", // Required
+  "referencedColumns": ["id"], // Required
+  "schema": "public", // Optional
+  "onUpdate": "CASCADE", // Optional: "NO ACTION" | "RESTRICT" | "CASCADE" | "SET NULL" | "SET DEFAULT"
+  "onDelete": "CASCADE", // Optional
+  "deferrable": false, // Optional
+  "initiallyDeferred": false // Optional
+}
+```
+
+#### 11.3. Drop Foreign Key (`drop_foreign_key`)
+Drop a foreign key constraint.
+
+```typescript
+// Example usage
+{
+  "constraintName": "fk_user_profile", // Required
+  "tableName": "profiles", // Required
+  "schema": "public", // Optional
+  "ifExists": true, // Optional
+  "cascade": false // Optional
+}
+```
+
+#### 11.4. Create Constraint (`create_constraint`)
+Create a constraint (unique, check, or primary key).
+
+```typescript
+// Example usage for unique constraint
+{
+  "constraintName": "uk_user_email", // Required
+  "tableName": "users", // Required
+  "constraintType": "unique", // Required: "unique" | "check" | "primary_key"
+  "columnNames": ["email"], // Required for unique/primary_key
+  "schema": "public", // Optional
+  "deferrable": false // Optional
+}
+
+// Example for check constraint
+{
+  "constraintName": "ck_user_age", // Required
+  "tableName": "users", // Required
+  "constraintType": "check", // Required
+  "checkExpression": "age >= 18", // Required for check constraints
+  "schema": "public" // Optional
+}
+```
+
+#### 11.5. Drop Constraint (`drop_constraint`)
+Drop a constraint.
+
+```typescript
+// Example usage
+{
+  "constraintName": "uk_user_email", // Required
+  "tableName": "users", // Required
+  "schema": "public", // Optional
+  "ifExists": true, // Optional
+  "cascade": false // Optional
+}
+```
+
 ## Prerequisites
 
 - Node.js >= 18.0.0

@@ -553,7 +553,7 @@ export const createFunctionTool: PostgresTool = {
   inputSchema: z.object({
     connectionString: z.string().optional().describe('PostgreSQL connection string (optional)'),
     functionName: z.string().describe('Name of the function to create'),
-    parameters: z.string().describe('Function parameters (e.g., "id integer, name text")'),
+    parameters: z.string().describe('Function parameters - required for create operation, required for drop when function is overloaded. Use empty string "" for functions with no parameters'),
     returnType: z.string().describe('Return type of the function'),
     functionBody: z.string().describe('Function body code'),
     language: z.enum(['sql', 'plpgsql', 'plpython3u']).describe('Function language'),
@@ -763,4 +763,304 @@ export const getRLSPoliciesTool: PostgresTool = {
     }
     return { content: [{ type: 'text', text: result.message }], isError: true };
   }
-}; 
+};
+
+// Consolidated Functions Management Tool
+export const manageFunctionsTool: PostgresTool = {
+  name: 'pg_manage_functions',
+  description: 'Manage PostgreSQL functions - get, create, or drop functions with a single tool. Examples: operation="get" to list functions, operation="create" with functionName="test_func", parameters="" (empty for no params), returnType="TEXT", functionBody="SELECT \'Hello\'"',
+  inputSchema: z.object({
+    connectionString: z.string().optional().describe('PostgreSQL connection string (optional)'),
+    operation: z.enum(['get', 'create', 'drop']).describe('Operation to perform: get (list/info), create (new function), or drop (remove function)'),
+    
+    // Common parameters
+    functionName: z.string().optional().describe('Name of the function (required for create/drop, optional for get to filter)'),
+    schema: z.string().optional().describe('Schema name (defaults to public)'),
+    
+    // Create operation parameters
+    parameters: z.string().optional().describe('Function parameters - required for create operation, required for drop when function is overloaded. Use empty string "" for functions with no parameters'),
+    returnType: z.string().optional().describe('Return type of the function (required for create operation)'),
+    functionBody: z.string().optional().describe('Function body code (required for create operation)'),
+    language: z.enum(['sql', 'plpgsql', 'plpython3u']).optional().describe('Function language (defaults to plpgsql for create)'),
+    volatility: z.enum(['VOLATILE', 'STABLE', 'IMMUTABLE']).optional().describe('Function volatility (defaults to VOLATILE for create)'),
+    security: z.enum(['INVOKER', 'DEFINER']).optional().describe('Function security context (defaults to INVOKER for create)'),
+    replace: z.boolean().optional().describe('Whether to replace the function if it exists (for create operation)'),
+    
+    // Drop operation parameters  
+    ifExists: z.boolean().optional().describe('Whether to include IF EXISTS clause (for drop operation)'),
+    cascade: z.boolean().optional().describe('Whether to include CASCADE clause (for drop operation)')
+  }),
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  execute: async (args: any, getConnectionStringVal: GetConnectionStringFn): Promise<ToolOutput> => {
+    const { 
+      connectionString: connStringArg,
+      operation,
+      functionName,
+      schema,
+      parameters,
+      returnType,
+      functionBody,
+      language,
+      volatility,
+      security,
+      replace,
+      ifExists,
+      cascade
+    } = args as {
+      connectionString?: string;
+      operation: 'get' | 'create' | 'drop';
+      functionName?: string;
+      schema?: string;
+      parameters?: string;
+      returnType?: string;
+      functionBody?: string;
+      language?: 'sql' | 'plpgsql' | 'plpython3u';
+      volatility?: 'VOLATILE' | 'STABLE' | 'IMMUTABLE';
+      security?: 'INVOKER' | 'DEFINER';
+      replace?: boolean;
+      ifExists?: boolean;
+      cascade?: boolean;
+    };
+
+    const resolvedConnString = getConnectionStringVal(connStringArg);
+    let result: FunctionResult;
+
+    try {
+      switch (operation) {
+        case 'get':
+          result = await _getFunctions(resolvedConnString, functionName, schema);
+          if (result.success) {
+            return { content: [{ type: 'text', text: JSON.stringify(result.details, null, 2) || result.message }] };
+          }
+          break;
+
+        case 'create': {
+          // Debug logging to understand what's being passed
+          console.error('DEBUG - Create operation parameters:', {
+            functionName: functionName,
+            parameters: parameters,
+            returnType: returnType,
+            functionBody: functionBody,
+            parametersType: typeof parameters,
+            parametersUndefined: parameters === undefined,
+            parametersNull: parameters === null
+          });
+          
+          // Fix validation: be more specific about which fields are missing
+          const missingFields = [];
+          if (!functionName) missingFields.push('functionName');
+          if (!returnType) missingFields.push('returnType');
+          if (!functionBody) missingFields.push('functionBody');
+          
+          if (missingFields.length > 0) {
+            return { 
+              content: [{ type: 'text', text: `Error: Missing required fields: ${missingFields.join(', ')}. Note: parameters can be empty string "" for functions with no parameters` }], 
+              isError: true 
+            };
+          }
+          
+          // Normalize parameters: treat undefined, null, or whitespace-only as empty string
+          const normalizedParameters: string = parameters === undefined || parameters === null ? '' : 
+            (typeof parameters === 'string' && parameters.trim() === '') ? '' : String(parameters);
+          result = await _createFunction(resolvedConnString, functionName as string, normalizedParameters, returnType as string, functionBody as string, {
+            language,
+            volatility,
+            schema,
+            security,
+            replace
+          });
+          break;
+        }
+
+        case 'drop':
+          if (!functionName) {
+            return { 
+              content: [{ type: 'text', text: 'Error: functionName is required for drop operation' }], 
+              isError: true 
+            };
+          }
+          result = await _dropFunction(resolvedConnString, functionName, parameters, {
+            schema,
+            ifExists,
+            cascade
+          });
+          break;
+
+        default:
+          return { 
+            content: [{ type: 'text', text: `Error: Unknown operation "${operation}". Supported operations: get, create, drop` }], 
+            isError: true 
+          };
+      }
+
+      if (result.success) {
+        return { content: [{ type: 'text', text: result.message + (result.details ? ` Details: ${JSON.stringify(result.details)}` : '') }] };
+      }
+      return { content: [{ type: 'text', text: result.message }], isError: true };
+
+    } catch (error) {
+      return { 
+        content: [{ type: 'text', text: `Error executing ${operation} operation: ${error instanceof Error ? error.message : String(error)}` }], 
+        isError: true 
+      };
+    }
+  }
+};
+
+// Consolidated Row-Level Security Management Tool
+export const manageRLSTool: PostgresTool = {
+  name: 'pg_manage_rls',
+  description: 'Manage PostgreSQL Row-Level Security - enable/disable RLS and manage policies. Examples: operation="enable" with tableName="users", operation="create_policy" with tableName, policyName, using, check',
+  inputSchema: z.object({
+    connectionString: z.string().optional().describe('PostgreSQL connection string (optional)'),
+    operation: z.enum(['enable', 'disable', 'create_policy', 'edit_policy', 'drop_policy', 'get_policies']).describe('Operation: enable/disable RLS, create_policy, edit_policy, drop_policy, get_policies'),
+    
+    // Common parameters
+    tableName: z.string().optional().describe('Table name (required for enable/disable/create_policy/edit_policy/drop_policy, optional filter for get_policies)'),
+    schema: z.string().optional().describe('Schema name (defaults to public)'),
+    
+    // Policy-specific parameters
+    policyName: z.string().optional().describe('Policy name (required for create_policy/edit_policy/drop_policy)'),
+    using: z.string().optional().describe('USING expression for policy (required for create_policy, optional for edit_policy)'),
+    check: z.string().optional().describe('WITH CHECK expression for policy (optional for create_policy/edit_policy)'),
+    command: z.enum(['ALL', 'SELECT', 'INSERT', 'UPDATE', 'DELETE']).optional().describe('Command the policy applies to (for create_policy)'),
+    role: z.string().optional().describe('Role the policy applies to (for create_policy)'),
+    replace: z.boolean().optional().describe('Whether to replace policy if exists (for create_policy)'),
+    
+    // Edit policy parameters
+    roles: z.array(z.string()).optional().describe('List of roles for policy (for edit_policy)'),
+    
+    // Drop policy parameters
+    ifExists: z.boolean().optional().describe('Include IF EXISTS clause (for drop_policy)')
+  }),
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  execute: async (args: any, getConnectionStringVal: GetConnectionStringFn): Promise<ToolOutput> => {
+    const { 
+      connectionString: connStringArg,
+      operation,
+      tableName,
+      schema,
+      policyName,
+      using,
+      check,
+      command,
+      role,
+      replace,
+      roles,
+      ifExists
+    } = args as {
+      connectionString?: string;
+      operation: 'enable' | 'disable' | 'create_policy' | 'edit_policy' | 'drop_policy' | 'get_policies';
+      tableName?: string;
+      schema?: string;
+      policyName?: string;
+      using?: string;
+      check?: string;
+      command?: 'ALL' | 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE';
+      role?: string;
+      replace?: boolean;
+      roles?: string[];
+      ifExists?: boolean;
+    };
+
+    const resolvedConnString = getConnectionStringVal(connStringArg);
+    let result: FunctionResult;
+
+    try {
+      switch (operation) {
+        case 'enable': {
+          if (!tableName) {
+            return { 
+              content: [{ type: 'text', text: 'Error: tableName is required for enable operation' }], 
+              isError: true 
+            };
+          }
+          result = await _enableRLS(resolvedConnString, tableName, schema);
+          break;
+        }
+
+        case 'disable': {
+          if (!tableName) {
+            return { 
+              content: [{ type: 'text', text: 'Error: tableName is required for disable operation' }], 
+              isError: true 
+            };
+          }
+          result = await _disableRLS(resolvedConnString, tableName, schema);
+          break;
+        }
+
+        case 'create_policy': {
+          if (!tableName || !policyName || !using) {
+            return { 
+              content: [{ type: 'text', text: 'Error: tableName, policyName, and using are required for create_policy operation' }], 
+              isError: true 
+            };
+          }
+          result = await _createRLSPolicy(resolvedConnString, tableName, policyName, using, check, {
+            schema,
+            command,
+            role,
+            replace
+          });
+          break;
+        }
+
+        case 'edit_policy': {
+          if (!tableName || !policyName) {
+            return { 
+              content: [{ type: 'text', text: 'Error: tableName and policyName are required for edit_policy operation' }], 
+              isError: true 
+            };
+          }
+          result = await _editRLSPolicy(resolvedConnString, tableName, policyName, {
+            schema,
+            roles,
+            using,
+            check
+          });
+          break;
+        }
+
+        case 'drop_policy': {
+          if (!tableName || !policyName) {
+            return { 
+              content: [{ type: 'text', text: 'Error: tableName and policyName are required for drop_policy operation' }], 
+              isError: true 
+            };
+          }
+          result = await _dropRLSPolicy(resolvedConnString, tableName, policyName, {
+            schema,
+            ifExists
+          });
+          break;
+        }
+
+        case 'get_policies': {
+          result = await _getRLSPolicies(resolvedConnString, tableName, schema);
+          if (result.success) {
+            return { content: [{ type: 'text', text: JSON.stringify(result.details, null, 2) || result.message }] };
+          }
+          break;
+        }
+
+        default:
+          return { 
+            content: [{ type: 'text', text: `Error: Unknown operation "${operation}". Supported operations: enable, disable, create_policy, edit_policy, drop_policy, get_policies` }], 
+            isError: true 
+          };
+      }
+
+      if (result.success) {
+        return { content: [{ type: 'text', text: result.message + (result.details ? ` Details: ${JSON.stringify(result.details)}` : '') }] };
+      }
+      return { content: [{ type: 'text', text: result.message }], isError: true };
+
+    } catch (error) {
+      return { 
+        content: [{ type: 'text', text: `Error executing ${operation} operation: ${error instanceof Error ? error.message : String(error)}` }], 
+        isError: true 
+      };
+    }
+  }
+};
