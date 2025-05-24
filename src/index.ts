@@ -125,6 +125,9 @@ import { getConstraintsTool, createForeignKeyTool, dropForeignKeyTool, createCon
 // New consolidated constraint management tool
 import { manageConstraintsTool } from './tools/constraints.js';
 
+// Import data query and mutation tools
+import { executeQueryTool, executeMutationTool, executeSqlTool } from './tools/data.js';
+
 // Initialize commander
 program
   .version('0.2.0')
@@ -339,7 +342,12 @@ const allTools: PostgresTool[] = [
     manageUsersTool,
     
     // Constraint Management Tools
-    manageConstraintsTool
+    manageConstraintsTool,
+
+    // Data Query and Mutation Tools
+    executeQueryTool,
+    executeMutationTool,
+    executeSqlTool
 ];
 
 const serverInstance = new PostgreSQLServer(allTools); 

@@ -35,7 +35,7 @@ Add to your MCP client configuration:
 
 ## What's Included
 
-**14 powerful tools** (down from 46 in v0.1) organized into:
+**17 powerful tools** (down from 46 in v0.1, enhanced with data capabilities) organized into:
 
 ### 📊 **Consolidated Meta-Tools** (8 tools)
 - **Schema Management** - Tables, columns, ENUMs, constraints
@@ -46,6 +46,11 @@ Add to your MCP client configuration:
 - **Triggers** - Database trigger management
 - **Constraints** - Foreign keys, checks, unique constraints
 - **Row-Level Security** - RLS policies and management
+
+### 🚀 **Data Query & Mutation Tools** (3 tools) 
+- **Execute Query** - SELECT operations with count/exists support
+- **Execute Mutation** - INSERT/UPDATE/DELETE/UPSERT operations
+- **Execute SQL** - Arbitrary SQL execution with transaction support
 
 ### 🔧 **Specialized Tools** (6 tools)
 - **Database Analysis** - Performance and configuration analysis
@@ -71,6 +76,22 @@ Add to your MCP client configuration:
   ]
 }
 
+// Query data with parameters
+{
+  "operation": "select",
+  "query": "SELECT * FROM users WHERE created_at > $1",
+  "parameters": ["2024-01-01"],
+  "limit": 100
+}
+
+// Insert new data
+{
+  "operation": "insert",
+  "table": "users",
+  "data": {"name": "John Doe", "email": "john@example.com"},
+  "returning": "*"
+}
+
 // Find slow queries
 {
   "operation": "get_slow_queries",
@@ -93,12 +114,13 @@ For additional information, see the [`docs/`](./docs/) folder:
 
 ## Features Highlights
 
-✅ **46→14 tools** - Streamlined for better AI discovery  
+✅ **46→17 tools** - Streamlined for better AI discovery  
 ✅ **Consolidated operations** - Multiple functions per tool  
+✅ **Data query & mutations** - Complete CRUD operations for application data
 ✅ **Smart parameter validation** - Clear error messages  
 ✅ **Flexible connection** - CLI args, env vars, or per-tool  
 ✅ **Production ready** - Connection pooling, error handling  
-✅ **Security focused** - Parameterized queries, SSL support  
+✅ **Security focused** - Parameterized queries, SQL injection prevention
 
 ## Prerequisites
 

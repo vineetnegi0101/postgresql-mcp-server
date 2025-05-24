@@ -96,7 +96,7 @@ async function executeExplainQuery(
     if (buffers) options.push('BUFFERS');
     if (verbose) options.push('VERBOSE');
     if (!costs) options.push('COSTS false');
-    options.push(`FORMAT ${format!.toUpperCase()}`);
+    options.push(`FORMAT ${format?.toUpperCase()}`);
     
     const explainQuery = `EXPLAIN (${options.join(', ')}) ${query}`;
     
@@ -163,7 +163,7 @@ async function executeGetSlowQueries(
     
     const queryColumn = includeNormalized ? 'query' : 'query';
     const minDurationClause = minDuration ? `WHERE mean_time >= ${minDuration}` : '';
-    const orderByColumn = orderBy === 'cache_hit_ratio' ? 'mean_time' : orderBy!; // fallback for unsupported column
+    const orderByColumn = orderBy === 'cache_hit_ratio' ? 'mean_time' : orderBy || 'mean_time'; // fallback for unsupported column
     
     const slowQueriesQuery = `
       SELECT 
@@ -186,7 +186,7 @@ async function executeGetSlowQueries(
       LIMIT $1
     `;
     
-    const result = await db.query<SlowQuery>(slowQueriesQuery, [limit!]);
+    const result = await db.query<SlowQuery>(slowQueriesQuery, [limit]);
     return result;
     
   } catch (error) {
@@ -299,7 +299,7 @@ async function executeResetQueryStats(
 async function executeManageQuery(
   input: ManageQueryInput,
   getConnectionString: GetConnectionStringFn
-): Promise<any> {
+): Promise<ExplainResult | SlowQuery[] | QueryStats[] | { message: string; queryId?: string }> {
   switch (input.operation) {
     case 'explain':
       return executeExplainQuery(input, getConnectionString);
@@ -348,7 +348,7 @@ export const manageQueryTool: PostgresTool = {
           message = `Query statistics ordered by ${validationResult.data.orderBy || 'total_time'}`;
           break;
         case 'reset_stats':
-          message = result.message;
+          message = (result as { message: string }).message;
           break;
         default:
           message = 'Query operation completed';
