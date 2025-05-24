@@ -81,7 +81,9 @@ Add to your MCP client configuration:
 
 ## 📚 Documentation
 
-For detailed information, see the [`docs/`](./docs/) folder:
+**📋 [Complete Tool Schema Reference](./TOOL_SCHEMAS.md)** - All 14 tool parameters & examples in one place
+
+For additional information, see the [`docs/`](./docs/) folder:
 
 - **[📖 Usage Guide](./docs/USAGE.md)** - Comprehensive tool usage and examples
 - **[🛠️ Development Guide](./docs/DEVELOPMENT.md)** - Setup and contribution guide  
