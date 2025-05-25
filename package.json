@@ -1,26 +1,57 @@
 {
-  "name": "postgres-mcp",
-  "version": "0.2.0",
-  "description": "PostgreSQL MCP Server",
+  "name": "@henkey/postgres-mcp-server",
+  "version": "1.0.3",
+  "description": "A Model Context Protocol (MCP) server that provides comprehensive PostgreSQL database management capabilities for AI assistants",
   "main": "build/index.js",
+  "types": "build/index.d.ts",
   "type": "module",
   "bin": {
-    "postgres-mcp": "./build/index.js"
+    "postgres-mcp": "build/index.js"
+  },
+  "files": [
+    "build/",
+    "README.md",
+    "LICENSE",
+    "TOOL_SCHEMAS.md"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node -e \"const fs = require('fs'); const path = 'build/index.js'; const stats = fs.statSync(path); fs.chmodSync(path, stats.mode | parseInt('755', 8));\"",
     "start": "node build/index.js",
     "dev": "tsc -w & nodemon build/index.js",
     "lint": "eslint . --ext .ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepublishOnly": "npm run build",
+    "postinstall": "echo 'postgres-mcp-server installed successfully! Run with: npx @henkey/postgres-mcp-server'"
   },
   "keywords": [
     "postgresql",
+    "postgres",
     "mcp",
-    "database"
+    "database",
+    "model-context-protocol",
+    "ai",
+    "claude",
+    "database-management",
+    "sql",
+    "ai-assistant"
   ],
-  "author": "Your Name",
-  "license": "MIT",
+  "author": {
+    "name": "henkey",
+    "email": "henkey@example.com",
+    "url": "https://github.com/henkey"
+  },
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/henkey/postgres-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/henkey/postgres-mcp-server/issues"
+  },
+  "homepage": "https://github.com/henkey/postgres-mcp-server#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "latest",
     "commander": "^12.1.0",

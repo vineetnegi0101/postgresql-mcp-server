@@ -7,33 +7,57 @@ A Model Context Protocol (MCP) server that provides comprehensive PostgreSQL dat
 
 ## Quick Start
 
-### Install via Smithery (Fast)
+### Option 1: npm (Recommended)
+```bash
+# Install globally
+npm install -g @henkey/postgres-mcp-server
+
+# Or run directly with npx (no installation)
+npx @henkey/postgres-mcp-server --connection-string "postgresql://user:pass@localhost:5432/db"
+```
+
+Add to your MCP client configuration:
+```json
+{
+  "mcpServers": {
+    "postgresql-mcp": {
+      "command": "npx",
+      "args": [
+        "@henkey/postgres-mcp-server",
+        "--connection-string", "postgresql://user:password@host:port/database"
+      ]
+    }
+  }
+}
+```
+
+### Option 2: Install via Smithery
 ```bash
 npx -y @smithery/cli install @HenkDz/postgresql-mcp-server --client claude
 ```
 
-### Manual Installation (Host Locally)
-   ```bash
+### Option 3: Manual Installation (Development)
+```bash
 git clone <repository-url>
 cd postgresql-mcp-server
-   npm install
-   npm run build
-   ```
+npm install
+npm run build
+```
 
 Add to your MCP client configuration:
-   ```json
-   {
-     "mcpServers": {
-       "postgresql-mcp": {
-         "command": "node",
-         "args": [
-           "/path/to/postgresql-mcp-server/build/index.js",
+```json
+{
+  "mcpServers": {
+    "postgresql-mcp": {
+      "command": "node",
+      "args": [
+        "/path/to/postgresql-mcp-server/build/index.js",
         "--connection-string", "postgresql://user:password@host:port/database"
       ]
-       }
-     }
-   }
-   ```
+    }
+  }
+}
+```
 
 ## What's Included
 
