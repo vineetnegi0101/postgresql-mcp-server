@@ -176,7 +176,7 @@ async function executeMutation(
   try {
     await db.connect(resolvedConnectionString);
     
-    const schemaPrefix = schema !== 'public' ? `"${schema}".` : '';
+    const schemaPrefix = (schema && schema !== 'public') ? `"${schema}".` : '';
     const tableName = `${schemaPrefix}"${table}"`;
 
     switch (operation) {

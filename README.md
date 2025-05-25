@@ -3,6 +3,8 @@
 
 A Model Context Protocol (MCP) server that provides comprehensive PostgreSQL database management capabilities for AI assistants.
 
+**🚀 What's New**: This server has been completely redesigned from 46 individual tools to 17 intelligent tools through consolidation (34→8 meta-tools) and enhancement (+3 new data tools), providing better AI discovery while adding powerful data manipulation capabilities.
+
 ## Quick Start
 
 ### Install via Smithery (Fast)
@@ -11,31 +13,34 @@ npx -y @smithery/cli install @HenkDz/postgresql-mcp-server --client claude
 ```
 
 ### Manual Installation (Host Locally)
-```bash
+   ```bash
 git clone <repository-url>
 cd postgresql-mcp-server
-npm install
-npm run build
-```
+   npm install
+   npm run build
+   ```
 
 Add to your MCP client configuration:
-```json
-{
-  "mcpServers": {
-    "postgresql-mcp": {
-      "command": "node",
-      "args": [
-        "/path/to/postgresql-mcp-server/build/index.js",
+   ```json
+   {
+     "mcpServers": {
+       "postgresql-mcp": {
+         "command": "node",
+         "args": [
+           "/path/to/postgresql-mcp-server/build/index.js",
         "--connection-string", "postgresql://user:password@host:port/database"
       ]
-    }
-  }
-}
-```
+       }
+     }
+   }
+   ```
 
 ## What's Included
 
-**17 powerful tools** (down from 46 in v0.1, enhanced with data capabilities) organized into:
+**17 powerful tools** organized into three categories:
+- **🔄 Consolidation**: 34 original tools consolidated into 8 intelligent meta-tools
+- **🔧 Specialized**: 6 tools kept separate for complex operations  
+- **🆕 Enhancement**: 3 brand new data tools (not in original 46)
 
 ### 📊 **Consolidated Meta-Tools** (8 tools)
 - **Schema Management** - Tables, columns, ENUMs, constraints
@@ -47,9 +52,10 @@ Add to your MCP client configuration:
 - **Constraints** - Foreign keys, checks, unique constraints
 - **Row-Level Security** - RLS policies and management
 
-### 🚀 **Data Query & Mutation Tools** (3 tools) 
+### 🚀 **Data Query & Mutation Tools** (3 NEW tools) 
+*Brand new capabilities not available in the original 46 tools*
 - **Execute Query** - SELECT operations with count/exists support
-- **Execute Mutation** - INSERT/UPDATE/DELETE/UPSERT operations
+- **Execute Mutation** - INSERT/UPDATE/DELETE/UPSERT operations  
 - **Execute SQL** - Arbitrary SQL execution with transaction support
 
 ### 🔧 **Specialized Tools** (6 tools)
@@ -114,13 +120,20 @@ For additional information, see the [`docs/`](./docs/) folder:
 
 ## Features Highlights
 
-✅ **46→17 tools** - Streamlined for better AI discovery  
-✅ **Consolidated operations** - Multiple functions per tool  
-✅ **Data query & mutations** - Complete CRUD operations for application data
-✅ **Smart parameter validation** - Clear error messages  
-✅ **Flexible connection** - CLI args, env vars, or per-tool  
-✅ **Production ready** - Connection pooling, error handling  
-✅ **Security focused** - Parameterized queries, SQL injection prevention
+### **🔄 Consolidation Achievements**
+✅ **34→8 meta-tools** - Intelligent consolidation for better AI discovery  
+✅ **Multiple operations per tool** - Unified schemas with operation parameters  
+✅ **Smart parameter validation** - Clear error messages and type safety
+
+### **🆕 Enhanced Data Capabilities** 
+✅ **Complete CRUD operations** - INSERT/UPDATE/DELETE/UPSERT with parameterized queries  
+✅ **Flexible querying** - SELECT with count/exists support and safety limits
+✅ **Arbitrary SQL execution** - Transaction support for complex operations
+
+### **🔧 Production Ready**
+✅ **Flexible connection** - CLI args, env vars, or per-tool configuration  
+✅ **Security focused** - SQL injection prevention, parameterized queries  
+✅ **Robust architecture** - Connection pooling, comprehensive error handling
 
 ## Prerequisites
 
@@ -131,7 +144,7 @@ For additional information, see the [`docs/`](./docs/) folder:
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch  
+2. Create a feature branch
 3. Commit your changes
 4. Create a Pull Request
 

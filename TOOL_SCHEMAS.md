@@ -1,12 +1,13 @@
 # PostgreSQL MCP Server - Complete Tool Schema Reference
 
-> **Quick Reference**: This document contains the complete parameter schemas for all 14 tools. No more hunting through multiple docs!
+> **Quick Reference**: This document contains the complete parameter schemas for all 17 tools. No more hunting through multiple docs!
 
 ## 🚀 Quick Navigation
 
 | Category | Tools |
 |----------|-------|
 | [**Meta-Tools**](#meta-tools-consolidated-operations) | [Schema](#schema-management) • [Users](#user--permissions-management) • [Query](#query-performance--analysis) • [Index](#index-management) • [Functions](#functions-management) • [Triggers](#triggers-management) • [Constraints](#constraint-management) • [RLS](#row-level-security-rls) |
+| [**🆕 Data Tools**](#data-tools-new-capabilities) | [Execute Query](#execute-query) • [Execute Mutation](#execute-mutation) • [Execute SQL](#execute-sql) |
 | [**Specialized**](#specialized-tools) | [Analysis](#database-analysis) • [Setup](#setup-instructions) • [Debug](#database-debugging) • [Export/Import](#data-exportimport) • [Copy](#copy-between-databases) • [Monitor](#real-time-monitoring) |
 
 ---
@@ -361,6 +362,153 @@
 
 ---
 
+## Data Tools (New Capabilities)
+
+### Execute Query
+**Tool:** `pg_execute_query`  
+*For SELECT operations with advanced features*
+
+#### Basic SELECT
+```json
+{
+  "operation": "select",
+  "query": "SELECT * FROM users WHERE active = $1", // required: SELECT query
+  "parameters": [true],         // optional: parameters for $1, $2, etc.
+  "limit": 100,                 // optional: safety limit on rows
+  "timeout": 30000,             // optional: query timeout in ms
+  "connectionString": "postgresql://..." // optional if env var set
+}
+```
+
+#### Count Rows
+```json
+{
+  "operation": "count",
+  "query": "SELECT COUNT(*) FROM users WHERE created_at > $1",
+  "parameters": ["2024-01-01"],
+  "timeout": 10000
+}
+```
+
+#### Check Existence
+```json
+{
+  "operation": "exists",
+  "query": "SELECT 1 FROM users WHERE email = $1",
+  "parameters": ["user@example.com"]
+}
+```
+
+---
+
+### Execute Mutation
+**Tool:** `pg_execute_mutation`  
+*For INSERT/UPDATE/DELETE/UPSERT operations*
+
+#### Insert Data
+```json
+{
+  "operation": "insert",
+  "table": "users",             // required: table name
+  "data": {                     // required: data object
+    "name": "John Doe",
+    "email": "john@example.com",
+    "active": true
+  },
+  "schema": "public",           // optional: defaults to "public"
+  "returning": "*",             // optional: RETURNING clause
+  "connectionString": "postgresql://..." // optional if env var set
+}
+```
+
+#### Update Data
+```json
+{
+  "operation": "update",
+  "table": "users",             // required
+  "data": {                     // required: fields to update
+    "name": "Jane Doe",
+    "updated_at": "NOW()"
+  },
+  "where": "id = 123",          // required: WHERE clause (without WHERE)
+  "schema": "public",           // optional
+  "returning": "id, name, updated_at" // optional
+}
+```
+
+#### Delete Data
+```json
+{
+  "operation": "delete",
+  "table": "users",             // required
+  "where": "active = false AND last_login < '2023-01-01'", // required
+  "schema": "public"            // optional
+}
+```
+
+#### Upsert (INSERT ... ON CONFLICT)
+```json
+{
+  "operation": "upsert",
+  "table": "users",             // required
+  "data": {                     // required: data to insert/update
+    "email": "user@example.com",
+    "name": "Updated Name",
+    "last_seen": "NOW()"
+  },
+  "conflictColumns": ["email"], // required: columns for ON CONFLICT
+  "returning": "*"              // optional
+}
+```
+
+---
+
+### Execute SQL
+**Tool:** `pg_execute_sql`  
+*For arbitrary SQL with advanced features*
+
+#### Simple SQL Statement
+```json
+{
+  "sql": "CREATE INDEX CONCURRENTLY idx_users_email ON users(email)", // required
+  "expectRows": false,          // optional: whether to expect rows back
+  "timeout": 60000,             // optional: timeout in ms
+  "transactional": false,       // optional: wrap in transaction
+  "connectionString": "postgresql://..." // optional if env var set
+}
+```
+
+#### Complex Query with Parameters
+```json
+{
+  "sql": "WITH recent_users AS (SELECT * FROM users WHERE created_at > $1) SELECT COUNT(*) FROM recent_users",
+  "parameters": ["2024-01-01"], // optional: parameters for $1, $2, etc.
+  "expectRows": true,
+  "timeout": 30000
+}
+```
+
+#### Transactional Operation
+```json
+{
+  "sql": "UPDATE accounts SET balance = balance - 100 WHERE id = $1; UPDATE accounts SET balance = balance + 100 WHERE id = $2;",
+  "parameters": [1, 2],
+  "transactional": true,        // wraps in BEGIN/COMMIT
+  "expectRows": false
+}
+```
+
+#### Data Definition (DDL)
+```json
+{
+  "sql": "ALTER TABLE users ADD COLUMN phone VARCHAR(20); CREATE INDEX idx_users_phone ON users(phone);",
+  "expectRows": false,
+  "transactional": true
+}
+```
+
+---
+
 ## Specialized Tools
 
 ### Database Analysis
@@ -505,9 +653,19 @@ postgresql://user:pass@localhost:5432/mydb?application_name=mcp-server&connect_t
 - Use `ifExists: true` for safer DROP operations
 - Use `ifNotExists: true` for safer CREATE operations
 
-### Pagination
-- Tools that return lists often support `limit` and `page` parameters
-- Default limits vary by tool (typically 10-100 items)
+### Parameterized Queries (Data Tools)
+- Use `$1`, `$2`, etc. placeholders in SQL queries
+- Provide corresponding values in the `parameters` array
+- This prevents SQL injection attacks
+
+### Pagination & Safety Limits
+- Query tools support `limit` parameter for safety (default varies)
+- Meta-tools that return lists often support pagination
+- Data mutation tools validate input for safety
+
+### Transactions (Execute SQL)
+- Set `transactional: true` for operations requiring ACID properties
+- Useful for multi-statement operations or critical data changes
 
 ---
 
@@ -529,6 +687,9 @@ All tools return structured error information:
 - `PERMISSION_DENIED` - Insufficient database privileges
 - `OBJECT_NOT_FOUND` - Referenced object doesn't exist
 - `SYNTAX_ERROR` - Invalid SQL syntax
+- `TIMEOUT_ERROR` - Query exceeded timeout limit (data tools)
+- `TRANSACTION_ERROR` - Transaction rollback or failure (execute SQL)
+- `CONSTRAINT_VIOLATION` - Data violates constraints (mutations)
 
 ---
 

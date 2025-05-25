@@ -490,7 +490,7 @@ export const setTriggerStateTool: PostgresTool = {
       return { content: [{ type: 'text', text: `Error setting trigger state: ${errorMessage}` }], isError: true };
     }
   }
-};
+}; 
 
 // Complete Consolidated Trigger Management Tool (covers all 4 operations)
 export const manageTriggersTools: PostgresTool = {
