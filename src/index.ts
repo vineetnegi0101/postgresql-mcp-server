@@ -12,7 +12,7 @@ import {
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
 // Import the new tool types
-import type { PostgresTool, GetConnectionStringFn, ToolOutput } from './types/tool.js';
+import type { PostgresTool, ToolOutput } from './types/tool.js';
 
 // Tool implementations will be imported here later
 // For now, we'll define an empty list.
@@ -26,6 +26,8 @@ import { DatabaseConnection } from './utils/connection.js';
 import { analyzeDatabaseTool } from './tools/analyze.js'; // .js because TS will compile to JS
 
 // Import all refactored tools from functions.ts and add them to the allTools array.
+// Commented out for testing consolidated functions tool
+/*
 import {
     getFunctionsTool,
     createFunctionTool,
@@ -37,12 +39,33 @@ import {
     editRLSPolicyTool,
     getRLSPoliciesTool
 } from './tools/functions.js'; // .js because TS will compile to JS
+*/
+
+// Import consolidated functions tool (for testing)
+import {
+    manageFunctionsTool,  // Now implemented
+    // Commented out for RLS consolidation testing
+    /*
+    enableRLSTool,
+    disableRLSTool,
+    createRLSPolicyTool,
+    dropRLSPolicyTool,
+    editRLSPolicyTool,
+    getRLSPoliciesTool
+    */
+    // New consolidated RLS tool
+    manageRLSTool
+} from './tools/functions.js';
 
 // Import debug tool
 import { debugDatabaseTool } from './tools/debug.js';
 
 // Import enum tools
+// Commented out for schema management consolidation
+/*
 import { getEnumsTool, createEnumTool } from './tools/enums.js';
+*/
+// Enums now included in consolidated schema tool
 
 // Import migration tools
 import { exportTableDataTool, importTableDataTool, copyBetweenDatabasesTool } from './tools/migration.js';
@@ -51,17 +74,63 @@ import { exportTableDataTool, importTableDataTool, copyBetweenDatabasesTool } fr
 import { monitorDatabaseTool } from './tools/monitor.js';
 
 // Import schema tools
+// Commented out for schema management consolidation
+/*
 import { getSchemaInfoTool, createTableTool, alterTableTool } from './tools/schema.js';
+*/
+// New consolidated schema management tool
+import { manageSchemaTools } from './tools/schema.js';
 
 // Import setup tool
 import { getSetupInstructionsTool } from './tools/setup.js';
 
 // Import trigger tools
+// Import trigger tools
+// Commented out for trigger management consolidation
+/*
 import { getTriggersTool, createTriggerTool, dropTriggerTool, setTriggerStateTool } from './tools/triggers.js';
+*/
+// New consolidated trigger management tool
+import { manageTriggersTools } from './tools/triggers.js';
+
+// Import index tools
+// Commented out for index management consolidation
+/*
+import { getIndexesTool, createIndexTool, dropIndexTool, reindexTool, analyzeIndexUsageTool } from './tools/indexes.js';
+*/
+// New consolidated index management tool
+import { manageIndexesTool } from './tools/indexes.js';
+
+// Import performance tools
+// Commented out for query management consolidation
+/*
+import { explainQueryTool, getSlowQueriesTool, getQueryStatsTool, resetQueryStatsTool } from './tools/performance.js';
+*/
+// New consolidated query management tool
+import { manageQueryTool } from './tools/query.js';
+
+// Import user management tools
+// Commented out for user management consolidation
+/*
+import { createUserTool, dropUserTool, alterUserTool, grantPermissionsTool, revokePermissionsTool, getUserPermissionsTool, listUsersTool } from './tools/users.js';
+*/
+// New consolidated user management tool
+import { manageUsersTool } from './tools/users.js';
+
+// Import constraint tools
+// Commented out for constraint management consolidation
+/*
+import { getConstraintsTool, createForeignKeyTool, dropForeignKeyTool, createConstraintTool, dropConstraintTool } from './tools/constraints.js';
+*/
+// New consolidated constraint management tool
+import { manageConstraintsTool } from './tools/constraints.js';
+
+// Import data query and mutation tools
+import { executeQueryTool, executeMutationTool, executeSqlTool } from './tools/data.js';
 
 // Initialize commander
 program
-  .version('0.2.0')
+  .version('1.0.3')
   .option('-cs, --connection-string <string>', 'PostgreSQL connection string')
   .option('-tc, --tools-config <path>', 'Path to tools configuration JSON file')
   .parse(process.argv);
@@ -106,7 +175,7 @@ class PostgreSQLServer {
     this.server = new Server(
       {
         name: 'postgresql-mcp-server',
-        version: '0.2.0',
+        version: '1.0.3',
       },
       {
         capabilities: {
@@ -244,30 +313,41 @@ class PostgreSQLServer {
 // For now, initialize with an empty list. Tools will be refactored one by one.
 const allTools: PostgresTool[] = [
     analyzeDatabaseTool,
+    // Commented out for testing consolidated functions tool
+    /*
     getFunctionsTool,
     createFunctionTool,
     dropFunctionTool,
-    enableRLSTool,
-    disableRLSTool,
-    createRLSPolicyTool,
-    dropRLSPolicyTool,
-    editRLSPolicyTool,
-    getRLSPoliciesTool,
-    debugDatabaseTool,     // Add debug tool
-    getEnumsTool,          // Add getEnums tool
-    createEnumTool,         // Add createEnum tool
-    exportTableDataTool,    // Add exportTableData tool
-    importTableDataTool,    // Add importTableData tool
+    */
+    // New consolidated functions tool
+    manageFunctionsTool,
+          manageRLSTool,
+      debugDatabaseTool,     // Add debug tool
+      manageSchemaTools,      // Add consolidated schema management tool (includes get_info, create_table, alter_table, get_enums, create_enum)
+      exportTableDataTool,     // Add exportTableData tool
+    importTableDataTool,     // Add importTableData tool
     copyBetweenDatabasesTool, // Add copyBetweenDatabases tool
     monitorDatabaseTool,      // Add monitorDatabase tool
-    getSchemaInfoTool,      // Add getSchemaInfo tool
-    createTableTool,        // Add createTable tool
-    alterTableTool,         // Add alterTable tool
     getSetupInstructionsTool, // Add getSetupInstructions tool
-    getTriggersTool,        // Add getTriggers tool
-    createTriggerTool,      // Add createTrigger tool
-    dropTriggerTool,        // Add dropTrigger tool
-    setTriggerStateTool     // Add setTriggerState tool
+    // Trigger Management Tools (consolidated)
+    manageTriggersTools,      // Add consolidated trigger management tool (includes get, create, drop, set_state)
+    
+    // Index Management Tools
+    manageIndexesTool,
+    
+    // Query Performance Tools (consolidated)
+    manageQueryTool,
+    
+    // User Management Tools
+    manageUsersTool,
+    
+    // Constraint Management Tools
+    manageConstraintsTool,
+
+    // Data Query and Mutation Tools
+    executeQueryTool,
+    executeMutationTool,
+    executeSqlTool
 ];
 
 const serverInstance = new PostgreSQLServer(allTools); 

@@ -9,25 +9,12 @@ interface TriggerResult {
   details: unknown;
 }
 
-interface TriggerInfo {
-  name: string;
-  tableName: string;
-  tableSchema: string;
-  event: string;
-  timing: string;
-  definition: string;
-  function: string;
-  enabled: boolean;
-}
+interface TriggerInfo {  name: string;  tableName: string;  tableSchema: string;  event: string;  timing: string;  definition: string;  function: string;}
 
 /**
  * Get information about database triggers
  */
-export async function getTriggers(
-  connectionString: string,
-  tableName?: string,
-  schema: string = 'public'
-): Promise<TriggerResult> {
+export async function getTriggers(  connectionString: string,  tableName?: string,  schema = 'public'): Promise<TriggerResult> {
   const db = DatabaseConnection.getInstance();
   
   try {
@@ -38,25 +25,8 @@ export async function getTriggers(
         t.tgname AS name,
         c.relname AS "tableName",
         n.nspname AS "tableSchema",
-        CASE
-          WHEN t.tgtype & (1<<0) THEN 'ROW'
-          ELSE 'STATEMENT'
-        END AS level,
-        CASE
-          WHEN t.tgtype & (1<<1) THEN 'BEFORE'
-          WHEN t.tgtype & (1<<6) THEN 'INSTEAD OF'
-          ELSE 'AFTER'
-        END AS timing,
-        CASE
-          WHEN t.tgtype & (1<<2) THEN 'INSERT'
-          WHEN t.tgtype & (1<<3) THEN 'DELETE'
-          WHEN t.tgtype & (1<<4) THEN 'UPDATE'
-          WHEN t.tgtype & (1<<5) THEN 'TRUNCATE'
-          ELSE 'UNKNOWN'
-        END AS event,
-        p.proname AS function,
-        pg_get_triggerdef(t.oid) AS definition,
-        NOT t.tgdisabled AS enabled
+                CASE          WHEN (t.tgtype & (1<<0)) != 0 THEN 'ROW'          ELSE 'STATEMENT'        END AS level,        CASE          WHEN (t.tgtype & (1<<1)) != 0 THEN 'BEFORE'          WHEN (t.tgtype & (1<<6)) != 0 THEN 'INSTEAD OF'          ELSE 'AFTER'        END AS timing,        CASE          WHEN (t.tgtype & (1<<2)) != 0 THEN 'INSERT'          WHEN (t.tgtype & (1<<3)) != 0 THEN 'DELETE'          WHEN (t.tgtype & (1<<4)) != 0 THEN 'UPDATE'          WHEN (t.tgtype & (1<<5)) != 0 THEN 'TRUNCATE'          ELSE 'UNKNOWN'        END AS event,
+                p.proname AS function,        pg_get_triggerdef(t.oid) AS definition
       FROM pg_trigger t
       JOIN pg_class c ON t.tgrelid = c.oid
       JOIN pg_namespace n ON c.relnamespace = n.oid
@@ -277,47 +247,7 @@ const GetTriggersInputSchema = z.object({
 });
 type GetTriggersInput = z.infer<typeof GetTriggersInputSchema>;
 
-async function executeGetTriggers(
-  input: GetTriggersInput,
-  getConnectionString: GetConnectionStringFn
-): Promise<TriggerInfo[]> {
-  const resolvedConnectionString = getConnectionString(input.connectionString);
-  const db = DatabaseConnection.getInstance();
-  const { tableName, schema } = input;
-  
-  try {
-    await db.connect(resolvedConnectionString);
-    
-    let query = `
-      SELECT 
-        t.tgname AS name,
-        c.relname AS "tableName",
-        n.nspname AS "tableSchema",
-        CASE
-          WHEN t.tgtype & (1<<0) THEN 'ROW'
-          ELSE 'STATEMENT'
-        END AS level,
-        CASE
-          WHEN t.tgtype & (1<<1) THEN 'BEFORE'
-          WHEN t.tgtype & (1<<6) THEN 'INSTEAD OF'
-          ELSE 'AFTER'
-        END AS timing,
-        CASE
-          WHEN t.tgtype & (1<<2) THEN 'INSERT'
-          WHEN t.tgtype & (1<<3) THEN 'DELETE'
-          WHEN t.tgtype & (1<<4) THEN 'UPDATE'
-          WHEN t.tgtype & (1<<5) THEN 'TRUNCATE'
-          ELSE 'UNKNOWN'
-        END AS event,
-        p.proname AS function,
-        pg_get_triggerdef(t.oid) AS definition,
-        NOT t.tgdisabled AS enabled
-      FROM pg_trigger t
-      JOIN pg_class c ON t.tgrelid = c.oid
-      JOIN pg_namespace n ON c.relnamespace = n.oid
-      JOIN pg_proc p ON t.tgfoid = p.oid
-      WHERE NOT t.tgisinternal
-    `;
+async function executeGetTriggers(  input: GetTriggersInput,  getConnectionString: GetConnectionStringFn): Promise<TriggerInfo[]> {  const resolvedConnectionString = getConnectionString(input.connectionString);  const db = DatabaseConnection.getInstance();  const { tableName, schema } = input;    try {    await db.connect(resolvedConnectionString);        let query = `      SELECT         t.tgname AS name,        c.relname AS "tableName",        n.nspname AS "tableSchema",        CASE          WHEN (t.tgtype & (1<<0)) != 0 THEN 'ROW'          ELSE 'STATEMENT'        END AS level,        CASE          WHEN (t.tgtype & (1<<1)) != 0 THEN 'BEFORE'          WHEN (t.tgtype & (1<<6)) != 0 THEN 'INSTEAD OF'          ELSE 'AFTER'        END AS timing,        CASE          WHEN (t.tgtype & (1<<2)) != 0 THEN 'INSERT'          WHEN (t.tgtype & (1<<3)) != 0 THEN 'DELETE'          WHEN (t.tgtype & (1<<4)) != 0 THEN 'UPDATE'          WHEN (t.tgtype & (1<<5)) != 0 THEN 'TRUNCATE'          ELSE 'UNKNOWN'        END AS event,        p.proname AS function,        pg_get_triggerdef(t.oid) AS definition      FROM pg_trigger t      JOIN pg_class c ON t.tgrelid = c.oid      JOIN pg_namespace n ON c.relnamespace = n.oid      JOIN pg_proc p ON t.tgfoid = p.oid      WHERE NOT t.tgisinternal    `;
     
     const params = [];
     
@@ -561,3 +491,154 @@ export const setTriggerStateTool: PostgresTool = {
     }
   }
 }; 
+
+// Complete Consolidated Trigger Management Tool (covers all 4 operations)
+export const manageTriggersTools: PostgresTool = {
+  name: 'pg_manage_triggers',
+  description: 'Manage PostgreSQL triggers - get, create, drop, and enable/disable triggers. Examples: operation="get" to list triggers, operation="create" with triggerName, tableName, functionName, operation="drop" with triggerName and tableName, operation="set_state" with triggerName, tableName, enable',
+  inputSchema: z.object({
+    connectionString: z.string().optional().describe('PostgreSQL connection string (optional)'),
+    operation: z.enum(['get', 'create', 'drop', 'set_state']).describe('Operation: get (list triggers), create (new trigger), drop (remove trigger), set_state (enable/disable trigger)'),
+    
+    // Common parameters
+    schema: z.string().optional().describe('Schema name (defaults to public)'),
+    tableName: z.string().optional().describe('Table name (optional filter for get, required for create/drop/set_state)'),
+    
+    // Trigger identification (for create/drop/set_state)
+    triggerName: z.string().optional().describe('Trigger name (required for create/drop/set_state)'),
+    
+    // Create trigger parameters
+    functionName: z.string().optional().describe('Function name (required for create operation)'),
+    timing: z.enum(['BEFORE', 'AFTER', 'INSTEAD OF']).optional().describe('Trigger timing (for create operation, defaults to AFTER)'),
+    events: z.array(z.enum(['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'])).optional().describe('Trigger events (for create operation, defaults to ["INSERT"])'),
+    forEach: z.enum(['ROW', 'STATEMENT']).optional().describe('FOR EACH ROW or STATEMENT (for create operation, defaults to ROW)'),
+    when: z.string().optional().describe('WHEN clause condition (for create operation)'),
+    replace: z.boolean().optional().describe('Whether to replace trigger if exists (for create operation)'),
+    
+    // Drop trigger parameters
+    ifExists: z.boolean().optional().describe('Include IF EXISTS clause (for drop operation)'),
+    cascade: z.boolean().optional().describe('Include CASCADE clause (for drop operation)'),
+    
+    // Set state parameters
+    enable: z.boolean().optional().describe('Whether to enable the trigger (required for set_state operation)')
+  }),
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  execute: async (args: any, getConnectionStringVal: GetConnectionStringFn): Promise<ToolOutput> => {
+    const { 
+      connectionString: connStringArg,
+      operation,
+      schema,
+      tableName,
+      triggerName,
+      functionName,
+      timing,
+      events,
+      forEach,
+      when,
+      replace,
+      ifExists,
+      cascade,
+      enable
+    } = args as {
+      connectionString?: string;
+      operation: 'get' | 'create' | 'drop' | 'set_state';
+      schema?: string;
+      tableName?: string;
+      triggerName?: string;
+      functionName?: string;
+      timing?: 'BEFORE' | 'AFTER' | 'INSTEAD OF';
+      events?: ('INSERT' | 'UPDATE' | 'DELETE' | 'TRUNCATE')[];
+      forEach?: 'ROW' | 'STATEMENT';
+      when?: string;
+      replace?: boolean;
+      ifExists?: boolean;
+      cascade?: boolean;
+      enable?: boolean;
+    };
+
+    try {
+      switch (operation) {
+        case 'get': {
+          const result = await executeGetTriggers({
+            connectionString: connStringArg,
+            tableName,
+            schema: schema || 'public'
+          }, getConnectionStringVal);
+          const message = tableName 
+            ? `Triggers for table ${schema || 'public'}.${tableName}` 
+            : `Found ${result.length} triggers in schema ${schema || 'public'}`;
+          return { content: [{ type: 'text', text: message }, { type: 'text', text: JSON.stringify(result, null, 2) }] };
+        }
+
+        case 'create': {
+          if (!triggerName || !tableName || !functionName) {
+            return { 
+              content: [{ type: 'text', text: 'Error: triggerName, tableName, and functionName are required for create operation' }], 
+              isError: true 
+            };
+          }
+          const result = await executeCreateTrigger({
+            connectionString: connStringArg,
+            triggerName,
+            tableName,
+            functionName,
+            schema: schema || 'public',
+            timing: timing || 'AFTER',
+            events: events || ['INSERT'],
+            forEach: forEach || 'ROW',
+            when,
+            replace: replace || false
+          }, getConnectionStringVal);
+          return { content: [{ type: 'text', text: `Trigger ${result.name} created successfully on ${result.schema}.${result.table}` }, { type: 'text', text: JSON.stringify(result, null, 2) }] };
+        }
+
+        case 'drop': {
+          if (!triggerName || !tableName) {
+            return { 
+              content: [{ type: 'text', text: 'Error: triggerName and tableName are required for drop operation' }], 
+              isError: true 
+            };
+          }
+          const result = await executeDropTrigger({
+            connectionString: connStringArg,
+            triggerName,
+            tableName,
+            schema: schema || 'public',
+            ifExists: ifExists || false,
+            cascade: cascade || false
+          }, getConnectionStringVal);
+          return { content: [{ type: 'text', text: `Trigger ${result.name} dropped successfully from ${result.schema}.${result.table}` }, { type: 'text', text: JSON.stringify(result, null, 2) }] };
+        }
+
+        case 'set_state': {
+          if (!triggerName || !tableName || enable === undefined) {
+            return { 
+              content: [{ type: 'text', text: 'Error: triggerName, tableName, and enable are required for set_state operation' }], 
+              isError: true 
+            };
+          }
+          const result = await executeSetTriggerState({
+            connectionString: connStringArg,
+            triggerName,
+            tableName,
+            enable,
+            schema: schema || 'public'
+          }, getConnectionStringVal);
+          return { content: [{ type: 'text', text: `Trigger ${result.name} ${result.enabled ? 'enabled' : 'disabled'} on ${result.schema}.${result.table}` }, { type: 'text', text: JSON.stringify(result, null, 2) }] };
+        }
+
+        default:
+          return { 
+            content: [{ type: 'text', text: `Error: Unknown operation "${operation}". Supported operations: get, create, drop, set_state` }], 
+            isError: true 
+          };
+      }
+
+    } catch (error) {
+      const errorMessage = error instanceof McpError ? error.message : (error instanceof Error ? error.message : String(error));
+      return { content: [{ type: 'text', text: `Error executing ${operation} operation: ${errorMessage}` }], isError: true };
+    }
+  }
+};
+
+ 
