@@ -39,7 +39,7 @@ export class DatabaseConnection {
   private static instance: DatabaseConnection;
   private pool: PoolType | null = null;
   private client: PoolClientType | null = null;
-  private connectionString: string = '';
+  private connectionString = '';
   private lastError: Error | null = null;
   private connectionOptions: ConnectionOptions = {};
 
@@ -79,7 +79,7 @@ export class DatabaseConnection {
       
       // Check if we have a cached pool for this connection string
       if (poolCache.has(connString)) {
-        this.pool = poolCache.get(connString)!;
+        this.pool = poolCache.get(connString) as PoolType;
       } else {
         // Create a new pool
         const config: PoolConfig = {

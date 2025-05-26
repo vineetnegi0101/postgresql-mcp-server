@@ -1,5 +1,4 @@
 import type { z } from 'zod';
-import type { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 export type GetConnectionStringFn = (connectionStringArg?: string) => string;
 
