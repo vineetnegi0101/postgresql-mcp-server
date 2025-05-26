@@ -3,7 +3,7 @@
 
 A Model Context Protocol (MCP) server that provides comprehensive PostgreSQL database management capabilities for AI assistants.
 
-**🚀 What's New**: This server has been completely redesigned from 46 individual tools to 18 intelligent tools through consolidation (34→8 meta-tools) and enhancement (+4 new tools), providing better AI discovery while adding powerful data manipulation and comment management capabilities.
+**🚀 What's New**: This server has been completely redesigned from 46 individual tools to 17 intelligent tools through consolidation (34→8 meta-tools) and enhancement (+4 new tools), providing better AI discovery while adding powerful data manipulation and comment management capabilities.
 
 ## Quick Start
 
@@ -61,9 +61,9 @@ Add to your MCP client configuration:
 
 ## What's Included
 
-**18 powerful tools** organized into three categories:
+**17 powerful tools** organized into three categories:
 - **🔄 Consolidation**: 34 original tools consolidated into 8 intelligent meta-tools
-- **🔧 Specialized**: 6 tools kept separate for complex operations  
+- **🔧 Specialized**: 5 tools kept separate for complex operations  
 - **🆕 Enhancement**: 4 brand new tools (not in original 46)
 
 ### 📊 **Consolidated Meta-Tools** (8 tools)
@@ -83,9 +83,8 @@ Add to your MCP client configuration:
 - **Execute SQL** - Arbitrary SQL execution with transaction support
 - **Comments Management** - Comprehensive comment management for all database objects
 
-### 🔧 **Specialized Tools** (6 tools)
+### 🔧 **Specialized Tools** (5 tools)
 - **Database Analysis** - Performance and configuration analysis
-- **Setup Instructions** - Platform-specific PostgreSQL setup
 - **Debug Database** - Troubleshoot connection, performance, locks
 - **Data Export/Import** - JSON/CSV data migration
 - **Copy Between Databases** - Cross-database data transfer  

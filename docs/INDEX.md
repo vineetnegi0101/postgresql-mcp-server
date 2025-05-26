@@ -63,17 +63,12 @@ Analyzes PostgreSQL database configuration and performance.
 - [Usage Guide](USAGE.md#1-database-analysis)
 - [Implementation Details](DEVELOPMENT.md#1-creating-a-new-tool)
 
-### 2. get_setup_instructions
-Provides platform-specific setup guidance.
-- [Technical Specification](TECHNICAL.md#2-get_setup_instructions)
-- [Usage Guide](USAGE.md#2-setup-instructions)
-- [Implementation Details](DEVELOPMENT.md#2-adding-database-features)
 
-### 3. debug_database
+### 2. debug_database
 Helps troubleshoot database issues.
-- [Technical Specification](TECHNICAL.md#3-debug_database)
-- [Usage Guide](USAGE.md#3-database-debugging)
-- [Implementation Details](DEVELOPMENT.md#3-adding-utility-functions)
+- [Technical Specification](TECHNICAL.md#2-debug_database)
+- [Usage Guide](USAGE.md#2-database-debugging)
+- [Implementation Details](DEVELOPMENT.md#2-adding-database-features)
 
 ## Contributing
 

@@ -11,124 +11,23 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
-// Import the new tool types
+// Import tool types
 import type { PostgresTool, ToolOutput } from './types/tool.js';
-
-// Tool implementations will be imported here later
-// For now, we'll define an empty list.
-// e.g. import { analyzeDatabaseTool } from './tools/analyze.js';
-// import { getSetupInstructionsTool } from './tools/setup.js';
-// ... and so on for all tools
-
 import { DatabaseConnection } from './utils/connection.js';
 
-// Import the refactored tool
-import { analyzeDatabaseTool } from './tools/analyze.js'; // .js because TS will compile to JS
-
-// Import all refactored tools from functions.ts and add them to the allTools array.
-// Commented out for testing consolidated functions tool
-/*
-import {
-    getFunctionsTool,
-    createFunctionTool,
-    dropFunctionTool,
-    enableRLSTool,
-    disableRLSTool,
-    createRLSPolicyTool,
-    dropRLSPolicyTool,
-    editRLSPolicyTool,
-    getRLSPoliciesTool
-} from './tools/functions.js'; // .js because TS will compile to JS
-*/
-
-// Import consolidated functions tool (for testing)
-import {
-    manageFunctionsTool,  // Now implemented
-    // Commented out for RLS consolidation testing
-    /*
-    enableRLSTool,
-    disableRLSTool,
-    createRLSPolicyTool,
-    dropRLSPolicyTool,
-    editRLSPolicyTool,
-    getRLSPoliciesTool
-    */
-    // New consolidated RLS tool
-    manageRLSTool
-} from './tools/functions.js';
-
-// Import debug tool
+// Import all tool implementations
+import { analyzeDatabaseTool } from './tools/analyze.js';
+import { manageFunctionsTool, manageRLSTool } from './tools/functions.js';
 import { debugDatabaseTool } from './tools/debug.js';
-
-// Import enum tools
-// Commented out for schema management consolidation
-/*
-import { getEnumsTool, createEnumTool } from './tools/enums.js';
-*/
-// Enums now included in consolidated schema tool
-
-// Import migration tools
 import { exportTableDataTool, importTableDataTool, copyBetweenDatabasesTool } from './tools/migration.js';
-
-// Import monitor tool
 import { monitorDatabaseTool } from './tools/monitor.js';
-
-// Import schema tools
-// Commented out for schema management consolidation
-/*
-import { getSchemaInfoTool, createTableTool, alterTableTool } from './tools/schema.js';
-*/
-// New consolidated schema management tool
 import { manageSchemaTools } from './tools/schema.js';
-
-// Import setup tool
-import { getSetupInstructionsTool } from './tools/setup.js';
-
-// Import trigger tools
-// Import trigger tools
-// Commented out for trigger management consolidation
-/*
-import { getTriggersTool, createTriggerTool, dropTriggerTool, setTriggerStateTool } from './tools/triggers.js';
-*/
-// New consolidated trigger management tool
 import { manageTriggersTools } from './tools/triggers.js';
-
-// Import index tools
-// Commented out for index management consolidation
-/*
-import { getIndexesTool, createIndexTool, dropIndexTool, reindexTool, analyzeIndexUsageTool } from './tools/indexes.js';
-*/
-// New consolidated index management tool
 import { manageIndexesTool } from './tools/indexes.js';
-
-// Import performance tools
-// Commented out for query management consolidation
-/*
-import { explainQueryTool, getSlowQueriesTool, getQueryStatsTool, resetQueryStatsTool } from './tools/performance.js';
-*/
-// New consolidated query management tool
 import { manageQueryTool } from './tools/query.js';
-
-// Import user management tools
-// Commented out for user management consolidation
-/*
-import { createUserTool, dropUserTool, alterUserTool, grantPermissionsTool, revokePermissionsTool, getUserPermissionsTool, listUsersTool } from './tools/users.js';
-*/
-// New consolidated user management tool
 import { manageUsersTool } from './tools/users.js';
-
-// Import constraint tools
-// Commented out for constraint management consolidation
-/*
-import { getConstraintsTool, createForeignKeyTool, dropForeignKeyTool, createConstraintTool, dropConstraintTool } from './tools/constraints.js';
-*/
-// New consolidated constraint management tool
 import { manageConstraintsTool } from './tools/constraints.js';
-
-// Import data query and mutation tools
 import { executeQueryTool, executeMutationTool, executeSqlTool } from './tools/data.js';
-
-// Import comments management tool
 import { manageCommentsTool } from './tools/comments.js';
 
 // Initialize commander
@@ -140,8 +39,12 @@ program
 
 const options = program.opts();
 
-// Helper function to get connection string (remains largely the same)
-// This function will be passed to each tool's execute method.
+/**
+ * Get connection string from various sources in order of precedence:
+ * 1. Function argument (tool-specific)
+ * 2. CLI --connection-string option
+ * 3. POSTGRES_CONNECTION_STRING environment variable
+ */
 function getConnectionString(connectionStringArg?: string): string {
   if (connectionStringArg) {
     return connectionStringArg;
@@ -160,12 +63,9 @@ function getConnectionString(connectionStringArg?: string): string {
   );
 }
 
-// TOOL_DEFINITIONS array is removed.
-// Individual tool objects (PostgresTool) will be imported and collected.
-
 class PostgreSQLServer {
   private server: Server;
-  public availableToolsList: PostgresTool[]; // Made public for stepwise refactor
+  public availableToolsList: PostgresTool[];
   private enabledTools: PostgresTool[];
   private enabledToolsMap: Record<string, PostgresTool>;
 
@@ -196,6 +96,8 @@ class PostgreSQLServer {
     
     this.setupToolHandlers();
     this.server.onerror = (error) => console.error('[MCP Error]', error);
+    
+    // Handle graceful shutdown
     process.on('SIGINT', async () => {
       await this.cleanup();
       process.exit(0);
@@ -206,6 +108,9 @@ class PostgreSQLServer {
     });
   }
 
+  /**
+   * Load tools configuration and filter enabled tools
+   */
   private loadAndFilterTools(): void {
     let toolsToEnable = [...this.availableToolsList];
     const toolsConfigPath = options.toolsConfig;
@@ -218,6 +123,8 @@ class PostgreSQLServer {
           const enabledToolNames = new Set(config.enabledTools as string[]);
           toolsToEnable = this.availableToolsList.filter(tool => enabledToolNames.has(tool.name));
           console.error(`[MCP Info] Loaded tools configuration from ${toolsConfigPath}. Enabled tools: ${toolsToEnable.map(t => t.name).join(', ')}`);
+          
+          // Warn about tools specified in config but not available
           for (const requestedName of enabledToolNames) {
             if (!this.availableToolsList.some(tool => tool.name === requestedName)) {
               console.warn(`[MCP Warning] Tool "${requestedName}" specified in config file but not found in available tools.`);
@@ -236,14 +143,17 @@ class PostgreSQLServer {
         console.error('[MCP Info] No tools configuration file provided and no tools loaded into availableToolsList.');
       }
     }
+    
     this.enabledTools = toolsToEnable;
     this.enabledToolsMap = toolsToEnable.reduce((acc, tool) => {
       acc[tool.name] = tool;
       return acc;
     }, {} as Record<string, PostgresTool>);
-    // Ensured no server.updateCapabilities() call here.
   }
 
+  /**
+   * Clean up resources on shutdown
+   */
   private async cleanup(): Promise<void> {
     console.error('Shutting down PostgreSQL MCP server...');
     await DatabaseConnection.cleanupPools();
@@ -252,6 +162,9 @@ class PostgreSQLServer {
     }
   }
 
+  /**
+   * Setup MCP request handlers
+   */
   private setupToolHandlers(): void {
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: this.enabledTools.map(tool => ({
@@ -261,13 +174,13 @@ class PostgreSQLServer {
       })),
     }));
 
-    // Casting the handler to 'any' to bypass persistent incorrect type inference by TypeScript for this specific SDK call.
-    // The actual returned structure (ToolOutput) is compliant with CallToolResponse.
-    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-            this.server.setRequestHandler(CallToolRequestSchema, (async (request: any): Promise<ToolOutput> => {
+    // Handle tool execution requests
+    // biome-ignore lint/suspicious/noExplicitAny: MCP SDK type inference issue
+    this.server.setRequestHandler(CallToolRequestSchema, (async (request: any): Promise<ToolOutput> => {
       try {
         const toolName = request.params.name;
         const tool = this.enabledToolsMap[toolName];
+        
         if (!tool) {
           const wasAvailable = this.availableToolsList.some(t => t.name === toolName);
           const message = wasAvailable 
@@ -275,6 +188,7 @@ class PostgreSQLServer {
             : `Tool '${toolName}' is not enabled or does not exist.`;
           throw new McpError(ErrorCode.MethodNotFound, message);
         }
+        
         const result: ToolOutput = await tool.execute(request.params.arguments, getConnectionString);
         return result;
       } catch (error) {
@@ -288,7 +202,7 @@ class PostgreSQLServer {
           isError: true,
         } as ToolOutput;
       }
-    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+    // biome-ignore lint/suspicious/noExplicitAny: MCP SDK type inference issue
     }) as any);
   }
 
@@ -296,64 +210,50 @@ class PostgreSQLServer {
     if (this.availableToolsList.length === 0 && !options.toolsConfig) {
         console.warn("[MCP Warning] No tools loaded and no tools config provided. Server will start with no active tools.");
     }
-    // Ensure tools are loaded and filtered before connecting server
-    this.loadAndFilterTools(); 
-    // Server capabilities are set in constructor using this.enabledTools, which is now up-to-date.
     
+    this.loadAndFilterTools(); 
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     console.error('PostgreSQL MCP server running on stdio');
   }
 }
 
-// For the final refactored version, tools will be imported and passed to the constructor.
-// e.g.:
-// import { analyzeDatabaseTool } from './tools/analyze';
-// import { getSetupInstructionsTool } from './tools/setup';
-// const allTools = [analyzeDatabaseTool, getSetupInstructionsTool /*, ...all other tools */];
-// const serverInstance = new PostgreSQLServer(allTools);
-
-// For now, initialize with an empty list. Tools will be refactored one by one.
+/**
+ * All available PostgreSQL MCP tools
+ * Organized by category for maintainability
+ */
 const allTools: PostgresTool[] = [
-    analyzeDatabaseTool,
-    // Commented out for testing consolidated functions tool
-    /*
-    getFunctionsTool,
-    createFunctionTool,
-    dropFunctionTool,
-    */
-    // New consolidated functions tool
-    manageFunctionsTool,
-          manageRLSTool,
-      debugDatabaseTool,     // Add debug tool
-      manageSchemaTools,      // Add consolidated schema management tool (includes get_info, create_table, alter_table, get_enums, create_enum)
-      exportTableDataTool,     // Add exportTableData tool
-    importTableDataTool,     // Add importTableData tool
-    copyBetweenDatabasesTool, // Add copyBetweenDatabases tool
-    monitorDatabaseTool,      // Add monitorDatabase tool
-    getSetupInstructionsTool, // Add getSetupInstructions tool
-    // Trigger Management Tools (consolidated)
-    manageTriggersTools,      // Add consolidated trigger management tool (includes get, create, drop, set_state)
-    
-    // Index Management Tools
-    manageIndexesTool,
-    
-    // Query Performance Tools (consolidated)
-    manageQueryTool,
-    
-    // User Management Tools
-    manageUsersTool,
-    
-    // Constraint Management Tools
-    manageConstraintsTool,
-
-    // Data Query and Mutation Tools
-    executeQueryTool,
-    executeMutationTool,
-    executeSqlTool,
-
-    // Comments Management Tool (NEW FEATURE)
-    manageCommentsTool
+  // Core Analysis & Debugging
+  analyzeDatabaseTool,
+  debugDatabaseTool,
+  
+  // Schema & Structure Management (Meta-Tools)
+  manageSchemaTools,
+  manageFunctionsTool,
+  manageTriggersTools,
+  manageIndexesTool,
+  manageConstraintsTool,
+  manageRLSTool,
+  
+  // User & Security Management
+  manageUsersTool,
+  
+  // Query & Performance Management
+  manageQueryTool,
+  
+  // Data Operations (Enhancement Tools)
+  executeQueryTool,
+  executeMutationTool,
+  executeSqlTool,
+  
+  // Documentation & Metadata
+  manageCommentsTool,
+  
+  // Data Migration & Monitoring
+  exportTableDataTool,
+  importTableDataTool,
+  copyBetweenDatabasesTool,
+  monitorDatabaseTool
 ];
 
 const serverInstance = new PostgreSQLServer(allTools); 

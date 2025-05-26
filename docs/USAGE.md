@@ -55,47 +55,7 @@ const result = await useMcpTool("postgresql-mcp", "analyze_database", {
    - SSL/TLS settings
    - Access control validation
 
-### 2. Setup Instructions
-
-The `get_setup_instructions` tool provides platform-specific guidance:
-
-```typescript
-const instructions = await useMcpTool("postgresql-mcp", "get_setup_instructions", {
-  platform: "linux",
-  version: "15",
-  useCase: "production"
-});
-```
-
-#### Use Cases
-
-1. **Development Setup**
-   ```typescript
-   {
-     "platform": "linux",
-     "version": "15",
-     "useCase": "development"
-   }
-   ```
-   - Local installation steps
-   - Development configurations
-   - Testing environment setup
-   - Debug settings
-
-2. **Production Setup**
-   ```typescript
-   {
-     "platform": "linux",
-     "version": "15",
-     "useCase": "production"
-   }
-   ```
-   - Production-grade configurations
-   - Security hardening steps
-   - Performance optimizations
-   - Monitoring setup
-
-### 3. Database Debugging
+### 2. Database Debugging
 
 The `debug_database` tool helps troubleshoot issues:
 

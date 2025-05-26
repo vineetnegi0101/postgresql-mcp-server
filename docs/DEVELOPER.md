@@ -295,43 +295,7 @@ Debug replication issues:
 }
 ```
 
-#### Get Setup Instructions
 
-Get Linux setup instructions:
-```javascript
-{
-  "name": "get_setup_instructions",
-  "arguments": {
-    "platform": "linux",
-    "version": "15",
-    "useCase": "production"
-  }
-}
-```
-
-Get macOS setup instructions:
-```javascript
-{
-  "name": "get_setup_instructions",
-  "arguments": {
-    "platform": "macos",
-    "version": "15",
-    "useCase": "development"
-  }
-}
-```
-
-Get Windows setup instructions:
-```javascript
-{
-  "name": "get_setup_instructions",
-  "arguments": {
-    "platform": "windows",
-    "version": "15",
-    "useCase": "production"
-  }
-}
-```
 
 ## Best Practices
 

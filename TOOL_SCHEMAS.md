@@ -1,6 +1,6 @@
 # PostgreSQL MCP Server - Complete Tool Schema Reference
 
-> **Quick Reference**: This document contains the complete parameter schemas for all 18 tools. No more hunting through multiple docs!
+> **Quick Reference**: This document contains the complete parameter schemas for all 17 tools. No more hunting through multiple docs!
 
 ## 🚀 Quick Navigation
 
@@ -8,7 +8,7 @@
 |----------|-------|
 | [**Meta-Tools**](#meta-tools-consolidated-operations) | [Schema](#schema-management) • [Users](#user--permissions-management) • [Query](#query-performance--analysis) • [Index](#index-management) • [Functions](#functions-management) • [Triggers](#triggers-management) • [Constraints](#constraint-management) • [RLS](#row-level-security-rls) |
 | [**🆕 Enhancement Tools**](#enhancement-tools-new-capabilities) | [Execute Query](#execute-query) • [Execute Mutation](#execute-mutation) • [Execute SQL](#execute-sql) • [Comments](#comments-management) |
-| [**Specialized**](#specialized-tools) | [Analysis](#database-analysis) • [Setup](#setup-instructions) • [Debug](#database-debugging) • [Export/Import](#data-exportimport) • [Copy](#copy-between-databases) • [Monitor](#real-time-monitoring) |
+| [**Specialized**](#specialized-tools) | [Analysis](#database-analysis) • [Debug](#database-debugging) • [Export/Import](#data-exportimport) • [Copy](#copy-between-databases) • [Monitor](#real-time-monitoring) |
 
 ---
 
@@ -599,19 +599,6 @@
 {
   "analysisType": "performance",   // required: "configuration" | "performance" | "security"
   "connectionString": "postgresql://..." // optional if env var set
-}
-```
-
----
-
-### Setup Instructions  
-**Tool:** `pg_get_setup_instructions`
-
-```json
-{
-  "platform": "linux",            // required: "linux" | "macos" | "windows"
-  "version": "15",                 // optional, defaults to "latest"
-  "useCase": "production"          // optional: "development" | "production"
 }
 ```
 

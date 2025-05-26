@@ -71,66 +71,7 @@ interface AnalysisResult {
 }
 ```
 
-### 2. get_setup_instructions
-
-#### Input Schema
-```typescript
-interface SetupInstructionsInput {
-  platform: "linux" | "macos" | "windows";
-  version?: string;
-  useCase?: "development" | "production";
-  options?: {
-    includeExamples?: boolean;
-    format?: "text" | "markdown" | "html";
-    language?: string;
-  };
-}
-```
-
-#### Output Schema
-```typescript
-interface SetupInstructions {
-  status: "success" | "error";
-  instructions: {
-    prerequisites: Array<{
-      type: string;
-      details: string;
-      installCommand?: string;
-    }>;
-    steps: Array<{
-      order: number;
-      title: string;
-      description: string;
-      command?: string;
-      validation?: string;
-    }>;
-    configuration: {
-      files: Array<{
-        path: string;
-        content: string;
-        description: string;
-      }>;
-      settings: Record<string, {
-        value: string;
-        description: string;
-        impact: string;
-      }>;
-    };
-    verification: Array<{
-      step: string;
-      command: string;
-      expectedOutput: string;
-    }>;
-  };
-  error?: {
-    code: string;
-    message: string;
-    details: any;
-  };
-}
-```
-
-### 3. debug_database
+### 2. debug_database
 
 #### Input Schema
 ```typescript
