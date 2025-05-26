@@ -9,7 +9,16 @@ interface TriggerResult {
   details: unknown;
 }
 
-interface TriggerInfo {  name: string;  tableName: string;  tableSchema: string;  event: string;  timing: string;  definition: string;  function: string;}
+interface TriggerInfo {
+  name: string;
+  tableName: string;
+  tableSchema: string;
+  event: string;
+  timing: string;
+  definition: string;
+  function: string;
+  enabled: boolean;
+}
 
 /**
  * Get information about database triggers
@@ -25,8 +34,27 @@ export async function getTriggers(  connectionString: string,  tableName?: strin
         t.tgname AS name,
         c.relname AS "tableName",
         n.nspname AS "tableSchema",
-                CASE          WHEN (t.tgtype & (1<<0)) != 0 THEN 'ROW'          ELSE 'STATEMENT'        END AS level,        CASE          WHEN (t.tgtype & (1<<1)) != 0 THEN 'BEFORE'          WHEN (t.tgtype & (1<<6)) != 0 THEN 'INSTEAD OF'          ELSE 'AFTER'        END AS timing,        CASE          WHEN (t.tgtype & (1<<2)) != 0 THEN 'INSERT'          WHEN (t.tgtype & (1<<3)) != 0 THEN 'DELETE'          WHEN (t.tgtype & (1<<4)) != 0 THEN 'UPDATE'          WHEN (t.tgtype & (1<<5)) != 0 THEN 'TRUNCATE'          ELSE 'UNKNOWN'        END AS event,
-                p.proname AS function,        pg_get_triggerdef(t.oid) AS definition
+        CASE
+          WHEN (t.tgtype & (1<<0)) != 0 THEN 'ROW'
+          ELSE 'STATEMENT'
+        END AS level,
+        CASE
+          WHEN (t.tgtype & (1<<1)) != 0 THEN 'BEFORE'
+          WHEN (t.tgtype & (1<<6)) != 0 THEN 'INSTEAD OF'
+          ELSE 'AFTER'
+        END AS timing,
+        CASE
+          WHEN (t.tgtype & (1<<2)) != 0 THEN 'INSERT'
+          WHEN (t.tgtype & (1<<3)) != 0 THEN 'DELETE'
+          WHEN (t.tgtype & (1<<4)) != 0 THEN 'UPDATE'
+          WHEN (t.tgtype & (1<<5)) != 0 THEN 'TRUNCATE'
+          ELSE 'UNKNOWN'
+        END AS event,
+        p.proname AS function,
+        pg_get_triggerdef(t.oid) AS definition,
+        -- PostgreSQL version-compatible enabled status
+        -- Note: For older PostgreSQL versions without tgenabled, this will always return true
+        true AS enabled
       FROM pg_trigger t
       JOIN pg_class c ON t.tgrelid = c.oid
       JOIN pg_namespace n ON c.relnamespace = n.oid
@@ -247,7 +275,38 @@ const GetTriggersInputSchema = z.object({
 });
 type GetTriggersInput = z.infer<typeof GetTriggersInputSchema>;
 
-async function executeGetTriggers(  input: GetTriggersInput,  getConnectionString: GetConnectionStringFn): Promise<TriggerInfo[]> {  const resolvedConnectionString = getConnectionString(input.connectionString);  const db = DatabaseConnection.getInstance();  const { tableName, schema } = input;    try {    await db.connect(resolvedConnectionString);        let query = `      SELECT         t.tgname AS name,        c.relname AS "tableName",        n.nspname AS "tableSchema",        CASE          WHEN (t.tgtype & (1<<0)) != 0 THEN 'ROW'          ELSE 'STATEMENT'        END AS level,        CASE          WHEN (t.tgtype & (1<<1)) != 0 THEN 'BEFORE'          WHEN (t.tgtype & (1<<6)) != 0 THEN 'INSTEAD OF'          ELSE 'AFTER'        END AS timing,        CASE          WHEN (t.tgtype & (1<<2)) != 0 THEN 'INSERT'          WHEN (t.tgtype & (1<<3)) != 0 THEN 'DELETE'          WHEN (t.tgtype & (1<<4)) != 0 THEN 'UPDATE'          WHEN (t.tgtype & (1<<5)) != 0 THEN 'TRUNCATE'          ELSE 'UNKNOWN'        END AS event,        p.proname AS function,        pg_get_triggerdef(t.oid) AS definition      FROM pg_trigger t      JOIN pg_class c ON t.tgrelid = c.oid      JOIN pg_namespace n ON c.relnamespace = n.oid      JOIN pg_proc p ON t.tgfoid = p.oid      WHERE NOT t.tgisinternal    `;
+async function executeGetTriggers(  input: GetTriggersInput,  getConnectionString: GetConnectionStringFn): Promise<TriggerInfo[]> {  const resolvedConnectionString = getConnectionString(input.connectionString);  const db = DatabaseConnection.getInstance();  const { tableName, schema } = input;    try {    await db.connect(resolvedConnectionString);        let query = `
+      SELECT 
+        t.tgname AS name,
+        c.relname AS "tableName",
+        n.nspname AS "tableSchema",
+        CASE
+          WHEN (t.tgtype & (1<<0)) != 0 THEN 'ROW'
+          ELSE 'STATEMENT'
+        END AS level,
+        CASE
+          WHEN (t.tgtype & (1<<1)) != 0 THEN 'BEFORE'
+          WHEN (t.tgtype & (1<<6)) != 0 THEN 'INSTEAD OF'
+          ELSE 'AFTER'
+        END AS timing,
+        CASE
+          WHEN (t.tgtype & (1<<2)) != 0 THEN 'INSERT'
+          WHEN (t.tgtype & (1<<3)) != 0 THEN 'DELETE'
+          WHEN (t.tgtype & (1<<4)) != 0 THEN 'UPDATE'
+          WHEN (t.tgtype & (1<<5)) != 0 THEN 'TRUNCATE'
+          ELSE 'UNKNOWN'
+        END AS event,
+        p.proname AS function,
+        pg_get_triggerdef(t.oid) AS definition,
+        -- PostgreSQL version-compatible enabled status
+        -- Note: For older PostgreSQL versions without tgenabled, this will always return true
+        true AS enabled
+      FROM pg_trigger t
+      JOIN pg_class c ON t.tgrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      JOIN pg_proc p ON t.tgfoid = p.oid
+      WHERE NOT t.tgisinternal
+    `;
     
     const params = [];
     
@@ -490,7 +549,7 @@ export const setTriggerStateTool: PostgresTool = {
       return { content: [{ type: 'text', text: `Error setting trigger state: ${errorMessage}` }], isError: true };
     }
   }
-}; 
+};
 
 // Complete Consolidated Trigger Management Tool (covers all 4 operations)
 export const manageTriggersTools: PostgresTool = {

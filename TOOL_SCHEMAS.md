@@ -1,13 +1,13 @@
 # PostgreSQL MCP Server - Complete Tool Schema Reference
 
-> **Quick Reference**: This document contains the complete parameter schemas for all 17 tools. No more hunting through multiple docs!
+> **Quick Reference**: This document contains the complete parameter schemas for all 18 tools. No more hunting through multiple docs!
 
 ## 🚀 Quick Navigation
 
 | Category | Tools |
 |----------|-------|
 | [**Meta-Tools**](#meta-tools-consolidated-operations) | [Schema](#schema-management) • [Users](#user--permissions-management) • [Query](#query-performance--analysis) • [Index](#index-management) • [Functions](#functions-management) • [Triggers](#triggers-management) • [Constraints](#constraint-management) • [RLS](#row-level-security-rls) |
-| [**🆕 Data Tools**](#data-tools-new-capabilities) | [Execute Query](#execute-query) • [Execute Mutation](#execute-mutation) • [Execute SQL](#execute-sql) |
+| [**🆕 Enhancement Tools**](#enhancement-tools-new-capabilities) | [Execute Query](#execute-query) • [Execute Mutation](#execute-mutation) • [Execute SQL](#execute-sql) • [Comments](#comments-management) |
 | [**Specialized**](#specialized-tools) | [Analysis](#database-analysis) • [Setup](#setup-instructions) • [Debug](#database-debugging) • [Export/Import](#data-exportimport) • [Copy](#copy-between-databases) • [Monitor](#real-time-monitoring) |
 
 ---
@@ -362,7 +362,7 @@
 
 ---
 
-## Data Tools (New Capabilities)
+## Enhancement Tools (New Capabilities)
 
 ### Execute Query
 **Tool:** `pg_execute_query`  
@@ -505,6 +505,87 @@
   "expectRows": false,
   "transactional": true
 }
+```
+
+---
+
+### Comments Management
+**Tool:** `pg_manage_comments`  
+*Comprehensive comment management for all database objects*
+
+#### Get Comment
+```json
+{
+  "operation": "get",
+  "objectType": "table",        // required: "table" | "column" | "index" | "constraint" | "function" | "trigger" | "view" | "sequence" | "schema" | "database"
+  "objectName": "users",        // required: object name
+  "schema": "public",           // required for most object types (defaults to "public")
+  "columnName": "email",        // required when objectType is "column"
+  "connectionString": "postgresql://..." // optional if env var set
+}
+```
+
+#### Set Comment
+```json
+{
+  "operation": "set",
+  "objectType": "table",        // required
+  "objectName": "users",        // required
+  "comment": "Main user account information table", // required
+  "schema": "public",           // optional, defaults to "public"
+  "columnName": "created_at"    // required when objectType is "column"
+}
+```
+
+#### Remove Comment
+```json
+{
+  "operation": "remove",
+  "objectType": "column",       // required
+  "objectName": "users",        // required
+  "columnName": "old_field",    // required for column type
+  "schema": "public"            // optional
+}
+```
+
+#### Bulk Get (Discovery Mode)
+```json
+{
+  "operation": "bulk_get",
+  "schema": "public",           // optional: schema to search
+  "filterObjectType": "table",  // optional: filter by object type
+  "includeSystemObjects": false // optional: include system objects (defaults to false)
+}
+```
+
+#### Supported Object Types
+- **`table`** - Table comments
+- **`column`** - Column comments (requires `columnName`)
+- **`index`** - Index comments
+- **`constraint`** - Constraint comments
+- **`function`** - Function comments
+- **`trigger`** - Trigger comments
+- **`view`** - View comments
+- **`sequence`** - Sequence comments
+- **`schema`** - Schema comments
+- **`database`** - Database comments
+
+#### Examples by Object Type
+```json
+// Table comment
+{ "operation": "set", "objectType": "table", "objectName": "orders", "comment": "Customer order records" }
+
+// Column comment
+{ "operation": "set", "objectType": "column", "objectName": "orders", "columnName": "total_amount", "comment": "Order total in USD" }
+
+// Index comment
+{ "operation": "set", "objectType": "index", "objectName": "idx_orders_date", "comment": "Index for date-range queries" }
+
+// Function comment
+{ "operation": "set", "objectType": "function", "objectName": "calculate_tax", "comment": "Calculates tax based on location" }
+
+// Discover all commented objects
+{ "operation": "bulk_get", "schema": "public", "includeSystemObjects": false }
 ```
 
 ---
@@ -653,7 +734,7 @@ postgresql://user:pass@localhost:5432/mydb?application_name=mcp-server&connect_t
 - Use `ifExists: true` for safer DROP operations
 - Use `ifNotExists: true` for safer CREATE operations
 
-### Parameterized Queries (Data Tools)
+### Parameterized Queries (Enhancement Tools)
 - Use `$1`, `$2`, etc. placeholders in SQL queries
 - Provide corresponding values in the `parameters` array
 - This prevents SQL injection attacks
@@ -687,7 +768,7 @@ All tools return structured error information:
 - `PERMISSION_DENIED` - Insufficient database privileges
 - `OBJECT_NOT_FOUND` - Referenced object doesn't exist
 - `SYNTAX_ERROR` - Invalid SQL syntax
-- `TIMEOUT_ERROR` - Query exceeded timeout limit (data tools)
+- `TIMEOUT_ERROR` - Query exceeded timeout limit (enhancement tools)
 - `TRANSACTION_ERROR` - Transaction rollback or failure (execute SQL)
 - `CONSTRAINT_VIOLATION` - Data violates constraints (mutations)
 

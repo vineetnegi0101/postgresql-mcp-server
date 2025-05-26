@@ -3,7 +3,7 @@
 
 A Model Context Protocol (MCP) server that provides comprehensive PostgreSQL database management capabilities for AI assistants.
 
-**🚀 What's New**: This server has been completely redesigned from 46 individual tools to 17 intelligent tools through consolidation (34→8 meta-tools) and enhancement (+3 new data tools), providing better AI discovery while adding powerful data manipulation capabilities.
+**🚀 What's New**: This server has been completely redesigned from 46 individual tools to 18 intelligent tools through consolidation (34→8 meta-tools) and enhancement (+4 new tools), providing better AI discovery while adding powerful data manipulation and comment management capabilities.
 
 ## Quick Start
 
@@ -61,10 +61,10 @@ Add to your MCP client configuration:
 
 ## What's Included
 
-**17 powerful tools** organized into three categories:
+**18 powerful tools** organized into three categories:
 - **🔄 Consolidation**: 34 original tools consolidated into 8 intelligent meta-tools
 - **🔧 Specialized**: 6 tools kept separate for complex operations  
-- **🆕 Enhancement**: 3 brand new data tools (not in original 46)
+- **🆕 Enhancement**: 4 brand new tools (not in original 46)
 
 ### 📊 **Consolidated Meta-Tools** (8 tools)
 - **Schema Management** - Tables, columns, ENUMs, constraints
@@ -76,11 +76,12 @@ Add to your MCP client configuration:
 - **Constraints** - Foreign keys, checks, unique constraints
 - **Row-Level Security** - RLS policies and management
 
-### 🚀 **Data Query & Mutation Tools** (3 NEW tools) 
+### 🚀 **Enhancement Tools** (4 NEW tools) 
 *Brand new capabilities not available in the original 46 tools*
 - **Execute Query** - SELECT operations with count/exists support
 - **Execute Mutation** - INSERT/UPDATE/DELETE/UPSERT operations  
 - **Execute SQL** - Arbitrary SQL execution with transaction support
+- **Comments Management** - Comprehensive comment management for all database objects
 
 ### 🔧 **Specialized Tools** (6 tools)
 - **Database Analysis** - Performance and configuration analysis
@@ -128,11 +129,19 @@ Add to your MCP client configuration:
   "limit": 5,
   "minDuration": 100
 }
+
+// Manage database object comments
+{
+  "operation": "set",
+  "objectType": "table",
+  "objectName": "users",
+  "comment": "Main user account information table"
+}
 ```
 
 ## 📚 Documentation
 
-**📋 [Complete Tool Schema Reference](./TOOL_SCHEMAS.md)** - All 14 tool parameters & examples in one place
+**📋 [Complete Tool Schema Reference](./TOOL_SCHEMAS.md)** - All 18 tool parameters & examples in one place
 
 For additional information, see the [`docs/`](./docs/) folder:
 

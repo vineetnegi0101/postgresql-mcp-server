@@ -128,6 +128,9 @@ import { manageConstraintsTool } from './tools/constraints.js';
 // Import data query and mutation tools
 import { executeQueryTool, executeMutationTool, executeSqlTool } from './tools/data.js';
 
+// Import comments management tool
+import { manageCommentsTool } from './tools/comments.js';
+
 // Initialize commander
 program
   .version('1.0.4')
@@ -347,7 +350,10 @@ const allTools: PostgresTool[] = [
     // Data Query and Mutation Tools
     executeQueryTool,
     executeMutationTool,
-    executeSqlTool
+    executeSqlTool,
+
+    // Comments Management Tool (NEW FEATURE)
+    manageCommentsTool
 ];
 
 const serverInstance = new PostgreSQLServer(allTools); 
