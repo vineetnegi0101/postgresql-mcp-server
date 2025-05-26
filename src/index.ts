@@ -133,7 +133,7 @@ import { manageCommentsTool } from './tools/comments.js';
 
 // Initialize commander
 program
-  .version('1.0.4')
+  .version('1.0.5')
   .option('-cs, --connection-string <string>', 'PostgreSQL connection string')
   .option('-tc, --tools-config <path>', 'Path to tools configuration JSON file')
   .parse(process.argv);
@@ -178,7 +178,7 @@ class PostgreSQLServer {
     this.server = new Server(
       {
         name: 'postgresql-mcp-server',
-        version: '1.0.4',
+        version: '1.0.5',
       },
       {
         capabilities: {
